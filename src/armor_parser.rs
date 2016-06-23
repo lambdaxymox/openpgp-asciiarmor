@@ -55,13 +55,52 @@ impl<'a> ArmorParser<'a> {
         self.lookahead_token(i).token_type()
     }
 
-    pub fn match_token(&mut self, token_type: TokenType) -> Result<(), String> {
+    pub fn match_token(&mut self, token_type: TokenType) -> Result<ArmorToken, String> {
         if self.lookahead_type(1) == token_type {
+            let token = self.lookahead_token(1);
             self.consume();
-            Ok(())
+            Ok(token)
         } else {
             let err_str = format!("Expecting: {:?}; Found {:?}", token_type, self.lookahead_token(1));
             Err(err_str)
         }
     }
+    /*
+    pub fn upper_case_letter(&self) -> Result<ArmorToken, ()> {
+        let token = self.lookahead_token(1);
+        if token.is_upper_case() {
+            Ok(token)
+        } else {
+            Err(())
+        }
+    }
+
+    pub fn lower_case_letter(&mut self) -> Result<ArmorToken, ()> {
+        let token = self.lookahead_token(1);
+        if token.is_lower_case() {
+            Ok(token)
+        } else {
+            Err(())
+        }
+    }
+
+    pub fn letter(&mut self) -> Result<ArmorToken, ()> {
+        let token = self.lookahead_token(1);
+        if token.is_letter() {
+            Ok(token)
+        } else {
+            Err(())
+        }
+    }
+
+    pub fn digit(&mut self) -> Result<ArmorToken, ()> {
+        let token = self.lookahead_token(1);
+        if token.is_digit() {
+            Ok(token)
+        } else {
+            Err(())
+        }
+    }
+    */
 }
+

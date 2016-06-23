@@ -10,16 +10,18 @@ Text                := <<UTF-8>>
 UpperCaseLetter     := 'A' | 'B' | ... | 'Z'
 LowerCaseLetter     := 'a' | 'b' | ... | 'z'
 Letter              := UpperCaseLetter | LowerCaseLetter
-Number              := '0' | '1' | ... | '9'
+Digit               := '0' | '1' | ... | '9'
+Number              := (Digit)+
 EqualSign           := '='
 Pad                 := EqualSign
 NonPaddedBase64     := Letter | Number | ForwardSlash
 Base64              := NonPaddedBase64 | Pad
 ForwardSlash        := '/'
 Colon               := ':'
-WhiteSpace          := ' '
-ColonSpace          := Colon WhiteSpace
+Whitespace          := ' '
+ColonSpace          := Colon Whitespace
 NewLine             := '\r' | '\n'
+Blank               := (Whitespace)* NewLine
 FiveDashes          := "-----"
 Begin               := "BEGIN"
 End                 := "END"
@@ -41,8 +43,8 @@ MessageType         :=  PGPMessage
                      |  PGPPublicKeyBlock
                      |  PGPPrivateKeyBlock
                      |  PGPSignature
-                     |  PGPMessagePartXofY (Number)+ ForwardSlash (Number)+
-                     |  PGPMessagePartX    (Number)+
+                     |  PGPMessagePartXofY Number ForwardSlash Number
+                     |  PGPMessagePartX    Number
 ArmorHeaderLine     := FiveDashes Begin MessageType FiveDashes
 ArmorTailLine       := FiveDashes End MessageType FiveDashes
 ArmorHeaderKV       := Version ColonSpace (Text)*
