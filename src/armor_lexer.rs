@@ -6,6 +6,7 @@ use std::iter::Iterator;
 pub enum TokenType {
     Character,
     NewLine,
+    WhiteSpace,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -24,6 +25,7 @@ impl ArmorToken {
 
     pub fn valid_token(&self) -> bool {
         match self.token {
+            ' '  | '\t' => self.token_type == TokenType::WhiteSpace,
             '\n' | '\r' => self.token_type == TokenType::NewLine,
             _           => self.token_type == TokenType::Character, 
         }
@@ -50,6 +52,7 @@ impl<'a> ArmorLexer<'a> {
 
         match next_char {
             None                    => None,
+            Some(' ')  | Some('\t') => Some(ArmorToken::new(TokenType::WhiteSpace, ' ')),
             Some('\n') | Some('\r') => Some(ArmorToken::new(TokenType::NewLine, '\n')),
             Some(character)         => Some(ArmorToken::new(TokenType::Character, character)), 
         } 
