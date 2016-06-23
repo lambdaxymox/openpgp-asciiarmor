@@ -59,4 +59,4 @@ ArmorDataChecksum   := Pad NonPaddedBase64 NonPaddedBase64 NonPaddedBase64 NonPa
 ArmorBlock          := ArmorHeader Blank ArmorData ArmorDataChecksum ArmorTail
 Armor               := (ArmorBlock)+
 ```
-The parser implements a LL(k) recursive descent parser.
+The parser is a LL(k) recursive descent parser.
