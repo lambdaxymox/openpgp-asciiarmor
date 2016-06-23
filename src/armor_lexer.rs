@@ -30,6 +30,10 @@ impl ArmorToken {
             _           => self.token_type == TokenType::Character, 
         }
     }
+
+    pub fn token_type(&self) -> TokenType {
+        self.token_type
+    }
 }
 
 pub struct ArmorLexer<'a> {
