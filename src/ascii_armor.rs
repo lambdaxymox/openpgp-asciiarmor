@@ -6,7 +6,6 @@ const CRC24_POLY: usize = 0x1864CFB;
 
 type Crc24 = usize;
 
-
 // This is an adaption of the CRC-24 algorithm from section 6.1 of TFC4880.
 #[allow(unused_variables)]
 fn crc_octets(octets: &[u8]) -> Crc24 {
@@ -21,6 +20,6 @@ fn crc_octets(octets: &[u8]) -> Crc24 {
             }
         }
     }
-    // We bitwise AND with 0xFFFFFF to fit CRC24 into 24 bits.
+    // Fit crc24 into 24 bits.
     crc & 0xFFFFFF
 }
