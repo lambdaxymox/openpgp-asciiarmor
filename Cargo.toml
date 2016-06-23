@@ -4,3 +4,4 @@ version = "0.1.0"
 authors = ["Stallmanifold <stallmanifold@gmail.com>"]
 
 [dependencies]
+combine = "2.0.0-beta"
