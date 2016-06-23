@@ -18,6 +18,7 @@ Base64              := NonPaddedBase64 | Pad
 ForwardSlash        := '/'
 Colon               := ':'
 WhiteSpace          := ' '
+ColonSpace          := Colon WhiteSpace
 NewLine             := '\r' | '\n'
 FiveDashes          := "-----"
 Begin               := "BEGIN"
