@@ -65,7 +65,7 @@ impl<'a> ArmorParser<'a> {
             Err(err_str)
         }
     }
-    /*
+    
     pub fn upper_case_letter(&self) -> Result<ArmorToken, ()> {
         let token = self.lookahead_token(1);
         if token.is_upper_case() {
@@ -101,6 +101,37 @@ impl<'a> ArmorParser<'a> {
             Err(())
         }
     }
-    */
+
+    pub fn number(&mut self) -> Result<Vec<char>, ()> {
+        let mut parsed_number = vec![];
+
+        loop {
+            let result = self.digit();
+            match result {
+                Ok(token) => {
+                    parsed_number.push(token.token());
+                    self.consume();
+                }
+                Err(_) => {
+                    break;
+                }
+            }
+        }
+
+        if parsed_number.is_empty() {
+            return Err(());
+        }
+        
+        Ok(parsed_number)
+    }
+
+    pub fn pad(&mut self) -> Result<ArmorToken, ()> {
+        let token = self.lookahead_token(1);
+        if token.is_equal_sign() {
+            Ok(token)
+        } else {
+            Err(())
+        }
+    }
 }
 
