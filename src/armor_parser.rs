@@ -66,9 +66,10 @@ impl<'a> ArmorParser<'a> {
         }
     }
     
-    pub fn upper_case_letter(&self) -> Result<ArmorToken, ()> {
+    pub fn upper_case_letter(&mut self) -> Result<ArmorToken, ()> {
         let token = self.lookahead_token(1);
         if token.is_upper_case() {
+            self.consume();
             Ok(token)
         } else {
             Err(())
@@ -78,6 +79,7 @@ impl<'a> ArmorParser<'a> {
     pub fn lower_case_letter(&mut self) -> Result<ArmorToken, ()> {
         let token = self.lookahead_token(1);
         if token.is_lower_case() {
+            self.consume();
             Ok(token)
         } else {
             Err(())
@@ -87,6 +89,7 @@ impl<'a> ArmorParser<'a> {
     pub fn letter(&mut self) -> Result<ArmorToken, ()> {
         let token = self.lookahead_token(1);
         if token.is_letter() {
+            self.consume();
             Ok(token)
         } else {
             Err(())
@@ -96,21 +99,31 @@ impl<'a> ArmorParser<'a> {
     pub fn digit(&mut self) -> Result<ArmorToken, ()> {
         let token = self.lookahead_token(1);
         if token.is_digit() {
+            self.consume();
             Ok(token)
         } else {
             Err(())
         }
     }
 
-    pub fn number(&mut self) -> Result<Vec<char>, ()> {
-        let mut parsed_number = vec![];
+    pub fn whitespace(&mut self) -> Result<ArmorToken, ()> {
+        let token = self.lookahead_token(1);
+        if token.is_whitespace() {
+            self.consume();
+            Ok(token)
+        } else {
+            Err(())
+        }
+    }
+
+    pub fn number(&mut self) -> Result<String, ()> {
+        let mut parsed_number = String::new();
 
         loop {
             let result = self.digit();
             match result {
                 Ok(token) => {
                     parsed_number.push(token.token());
-                    self.consume();
                 }
                 Err(_) => {
                     break;
@@ -128,10 +141,38 @@ impl<'a> ArmorParser<'a> {
     pub fn pad(&mut self) -> Result<ArmorToken, ()> {
         let token = self.lookahead_token(1);
         if token.is_equal_sign() {
+            self.consume();
             Ok(token)
+        } else {
+            Err(())
+        }
+    }
+
+    pub fn blank_line(&mut self) -> Result<String, ()> {
+        let mut parsed_blank = String::new();
+
+        loop {
+            let token = self.lookahead_token(1);
+            if token.is_whitespace() {
+                self.consume();
+                parsed_blank.push(token.token());
+            }
+        }
+
+        let last_token = self.lookahead_token(1);
+        if last_token.is_newline() {
+            self.consume();
+            parsed_blank.push(last_token.token());
+
+            Ok(parsed_blank)
         } else {
             Err(())
         }
     }
 }
 
+
+#[cfg(test)]
+mod tests {
+
+}

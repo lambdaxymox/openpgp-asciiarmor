@@ -243,6 +243,7 @@ impl<'a> Iterator for ArmorLexer<'a> {
     }
 }
 
+
 #[cfg(test)]
 mod tests {
     use super::ArmorLexer;
