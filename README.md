@@ -21,7 +21,7 @@ Colon               := ':'
 Whitespace          := ' '
 ColonSpace          := Colon Whitespace
 NewLine             := '\r' | '\n'
-Blank               := (Whitespace)* NewLine
+BlankLine           := (Whitespace)* NewLine
 FiveDashes          := "-----"
 Begin               := "BEGIN"
 End                 := "END"
@@ -58,7 +58,7 @@ ArmorDataLine       := (NonPaddedBase64)*(76)
 ArmorPaddedDataLine := (NonPaddedBase64)* (Pad)*(76)
 ArmorData           := (ArmorDataLine)* ArmorPaddedDataLine
 ArmorDataChecksum   := Pad NonPaddedBase64 NonPaddedBase64 NonPaddedBase64 NonPaddedBase64
-ArmorBlock          := ArmorHeader Blank ArmorData ArmorDataChecksum ArmorTail
+ArmorBlock          := ArmorHeader BlankLine ArmorData ArmorDataChecksum ArmorTail
 Armor               := (ArmorBlock)+
 ```
 The parser is a LL(k) recursive descent parser.
