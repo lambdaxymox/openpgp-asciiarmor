@@ -1,29 +1,44 @@
 use std::marker::PhantomData;
-use combine::combinator::{Many, Choice, Expected, Satisfy};
+use combine::combinator::{Or, Many, Choice, Expected, Satisfy};
 use combine::combinator;
 use combine::primitives::Stream;
+use combine::primitives;
 use combine::{ParserExt, Parser, ParseResult, ParseError};
 use combine::char;
 
 
-macro_rules! lexer_combinator_def {
-    ( $ name : ident, $ inner_parser_type : ty ) => {
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum ArmorToken {
+    OtherUtf8(char),
+    UpperCaseLetter(char),
+    LowerCaseLetter(char),
+    Digit(char),
+    EqualSign(char),
+    Colon(char),
+    WhiteSpace(char),
+    NewLine(char),
+    Comma(char),
+    ForwardSlash(char),
+}
+
+macro_rules! lexer_combinator_impl {
+    ( $ name : ident, $ inner_parser_type : ty, $ armor_token : ident ) => {
         #[derive(Clone)]
         pub struct $name<I> where I: Stream<Item=char> {
             inner: $inner_parser_type,
             _marker: PhantomData<I>,
         }
-    }
-}
 
-macro_rules! lexer_combinator_parser_impl {
-    ( $ name : ident, $ inner_parser_type : ty ) => {
         impl<I> Parser for $name<I> where I: Stream<Item=char> {
             type Input = I;
-            type Output = <$inner_parser_type as Parser>::Output;
+            type Output = ArmorToken;
 
             fn parse_lazy(&mut self, input: Self::Input) -> ParseResult<Self::Output, Self::Input> {
-                self.inner.parse_lazy(input)
+                let result = self.inner.parse_lazy(input);
+                match result {
+                    Ok((parsed_char, consumed)) => Ok((ArmorToken::$armor_token(parsed_char), consumed)),
+                    Err(e) => Err(e),
+                }
             }
 
             fn add_error(&mut self, _error: &mut ParseError<Self::Input>) {
@@ -33,15 +48,7 @@ macro_rules! lexer_combinator_parser_impl {
     }
 }
 
-macro_rules! lexer_combinator_impl {
-    ( $ name : ident, $ inner_parser_type : ty ) => {
-        lexer_combinator_def!($name, $inner_parser_type);
-
-        lexer_combinator_parser_impl!($name, $inner_parser_type);
-    }
-}
-
-lexer_combinator_impl!(UpperCaseLetter, char::Upper<I>);
+lexer_combinator_impl!(UpperCaseLetter, char::Upper<I>, UpperCaseLetter);
 
 pub fn uppercase_letter<I>() -> UpperCaseLetter<I> 
     where I: Stream<Item=char> {
@@ -52,7 +59,7 @@ pub fn uppercase_letter<I>() -> UpperCaseLetter<I>
     }
 }
 
-lexer_combinator_impl!(LowerCaseLetter, char::Lower<I>);
+lexer_combinator_impl!(LowerCaseLetter, char::Lower<I>, LowerCaseLetter);
 
 pub fn lowercase_letter<I>() -> LowerCaseLetter<I> 
     where I: Stream<Item=char> {
@@ -64,7 +71,7 @@ pub fn lowercase_letter<I>() -> LowerCaseLetter<I>
 
 }
 
-lexer_combinator_impl!(EqualSign, combinator::Token<I>);
+lexer_combinator_impl!(EqualSign, combinator::Token<I>, EqualSign);
 
 pub fn equal_sign<I>() -> EqualSign<I> where I: Stream<Item=char> {
     EqualSign { 
@@ -73,7 +80,7 @@ pub fn equal_sign<I>() -> EqualSign<I> where I: Stream<Item=char> {
     }
 }
 
-lexer_combinator_impl!(Colon, combinator::Token<I>);
+lexer_combinator_impl!(Colon, combinator::Token<I>, Colon);
 
 pub fn colon<I>() -> Colon<I> where I: Stream<Item=char> {
     Colon {
@@ -82,7 +89,7 @@ pub fn colon<I>() -> Colon<I> where I: Stream<Item=char> {
     }
 }
 
-lexer_combinator_impl!(Digit, char::Digit<I>);
+lexer_combinator_impl!(Digit, char::Digit<I>, Digit);
 
 pub fn digit<I>() -> Digit<I> where I: Stream<Item=char> {
     Digit {
@@ -91,7 +98,7 @@ pub fn digit<I>() -> Digit<I> where I: Stream<Item=char> {
     }
 }
 
-lexer_combinator_impl!(WhiteSpace, char::Space<I>);
+lexer_combinator_impl!(WhiteSpace, char::Space<I>, WhiteSpace);
 
 pub fn whitespace<I>() -> WhiteSpace<I> where I: Stream<Item=char> {
     WhiteSpace {
@@ -100,7 +107,7 @@ pub fn whitespace<I>() -> WhiteSpace<I> where I: Stream<Item=char> {
     }
 }
 
-lexer_combinator_impl!(Comma, combinator::Token<I>);
+lexer_combinator_impl!(Comma, combinator::Token<I>, Comma);
 
 pub fn comma<I>() -> Comma<I> where I: Stream<Item=char> {
     Comma {
@@ -109,7 +116,7 @@ pub fn comma<I>() -> Comma<I> where I: Stream<Item=char> {
     }
 }
 
-lexer_combinator_impl!(ForwardSlash, combinator::Token<I>);
+lexer_combinator_impl!(ForwardSlash, combinator::Token<I>, ForwardSlash);
 
 pub fn forward_slash<I>() -> ForwardSlash<I> where I: Stream<Item=char> {
     ForwardSlash {
@@ -118,7 +125,7 @@ pub fn forward_slash<I>() -> ForwardSlash<I> where I: Stream<Item=char> {
     }
 }
 
-lexer_combinator_impl!(NewLine, char::NewLine<I>);
+lexer_combinator_impl!(NewLine, char::NewLine<I>, NewLine);
 
 pub fn newline<I>() -> NewLine<I> where I: Stream<Item=char> {
     NewLine {
@@ -153,7 +160,7 @@ fn is_other_utf8(ch: char) -> bool {
                                        || ch == '=')
 }
 
-lexer_combinator_impl!(OtherUtf8, Expected<Satisfy<I, fn(I::Item) -> bool>>);
+lexer_combinator_impl!(OtherUtf8, Expected<Satisfy<I, fn(I::Item) -> bool>>, OtherUtf8);
 
 pub fn other_utf8<I>() -> OtherUtf8<I> where I: Stream<Item=char> {
     OtherUtf8 {
@@ -162,47 +169,59 @@ pub fn other_utf8<I>() -> OtherUtf8<I> where I: Stream<Item=char> {
     }
 }
 
-pub struct ArmorLexer<I> where I: Stream<Item=char> {
-    uppercase_letter: UpperCaseLetter<I>,
-    lowercase_letter: LowerCaseLetter<I>,
-    equal_sign: EqualSign<I>,
-    colon: Colon<I>,
-    digit: Digit<I>,
-    whitespace: WhiteSpace<I>,
-    comma: Comma<I>,
-    forward_slash: ForwardSlash<I>,
-    newline: NewLine<I>,
-    other_utf8: OtherUtf8<I>,
+pub struct InnerArmorLexer<I> where I: Stream<Item=char> {
+    inner: Or<UpperCaseLetter<I>, 
+           Or<LowerCaseLetter<I>, 
+           Or<EqualSign<I>, 
+           Or<Colon<I>, 
+           Or<Digit<I>, 
+           Or<WhiteSpace<I>, 
+           Or<Comma<I>, 
+           Or<ForwardSlash<I>, 
+           Or<NewLine<I>, OtherUtf8<I>>>>>>>>>>,
+
     _marker: PhantomData<I>,
 }
 
-/*
-impl<I> Parser for ArmorLexer<I> where I: Stream<Item=char> {
+impl<I> Parser for InnerArmorLexer<I> where I: Stream<Item=char> {
     type Input = I;
-    type Output = ?;
+    type Output = ArmorToken;
 
+    fn parse_lazy(&mut self, input: Self::Input) -> ParseResult<Self::Output, Self::Input> {
+        self.inner.parse_lazy(input)
+    }
 
+    fn add_error(&mut self, _error: &mut ParseError<Self::Input>) {
+        self.inner.add_error(_error);
+    }
 }
-*/
 
-pub fn armor_lexer<I>() -> ArmorLexer<I>
+pub fn inner_armor_lexer<I>() -> InnerArmorLexer<I>
     where I: Stream<Item=char>, 
 {
-    ArmorLexer {
-        uppercase_letter: uppercase_letter(),
-        lowercase_letter: lowercase_letter(),
-        equal_sign: equal_sign(),
-        colon: colon(),
-        digit: digit(),
-        whitespace: whitespace(),
-        comma: comma(),
-        forward_slash: forward_slash(),
-        newline: newline(),
-        other_utf8: other_utf8(),
+    InnerArmorLexer {
+        inner: uppercase_letter().or(lowercase_letter()
+                                 .or(equal_sign()
+                                 .or(colon()
+                                 .or(digit()
+                                 .or(whitespace()
+                                 .or(comma()
+                                 .or(forward_slash()
+                                 .or(newline()
+                                 .or(other_utf8()))))))))),
         _marker: PhantomData,
     }
 }
 
+pub struct ArmorLexer<I> where I: Stream<Item=char> {
+    lexer: InnerArmorLexer<I>,
+}
+
+pub fn armor_lexer<I>() -> ArmorLexer<I> where I: Stream<Item=char> {
+    ArmorLexer {
+        lexer: inner_armor_lexer(),
+    }
+}
 
 #[cfg(test)]
 mod tests {
