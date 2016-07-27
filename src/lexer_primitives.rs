@@ -1,5 +1,5 @@
 use std::marker::PhantomData;
-use combine::combinator::{Expected, Satisfy};
+use combine::combinator::{Many, Choice, Expected, Satisfy};
 use combine::combinator;
 use combine::primitives::Stream;
 use combine::{ParserExt, Parser, ParseResult, ParseError};
@@ -162,23 +162,50 @@ pub fn other_utf8<I>() -> OtherUtf8<I> where I: Stream<Item=char> {
     }
 }
 
-/*
 pub struct ArmorLexer<I> where I: Stream<Item=char> {
-    inner: 
+    uppercase_letter: UpperCaseLetter<I>,
+    lowercase_letter: LowerCaseLetter<I>,
+    equal_sign: EqualSign<I>,
+    colon: Colon<I>,
+    digit: Digit<I>,
+    whitespace: WhiteSpace<I>,
+    comma: Comma<I>,
+    forward_slash: ForwardSlash<I>,
+    newline: NewLine<I>,
+    other_utf8: OtherUtf8<I>,
+    _marker: PhantomData<I>,
 }
 
-pub fn armor_lexer<I>() -> ArmorLexer<I>
-    where I: Stream<item=char> {
+/*
+impl<I> Parser for ArmorLexer<I> where I: Stream<Item=char> {
+    type Input = I;
+    type Output = ?;
 
-    ArmorLexer {
-        inner: 
-    }
+
 }
 */
 
+pub fn armor_lexer<I>() -> ArmorLexer<I>
+    where I: Stream<Item=char>, 
+{
+    ArmorLexer {
+        uppercase_letter: uppercase_letter(),
+        lowercase_letter: lowercase_letter(),
+        equal_sign: equal_sign(),
+        colon: colon(),
+        digit: digit(),
+        whitespace: whitespace(),
+        comma: comma(),
+        forward_slash: forward_slash(),
+        newline: newline(),
+        other_utf8: other_utf8(),
+        _marker: PhantomData,
+    }
+}
+
+
 #[cfg(test)]
 mod tests {
-
     use std::io;
     use std::io::Write;
 
@@ -196,6 +223,7 @@ mod tests {
 
     #[test]
     fn test_armor_lexer() {
-
+        let armored_data = ascii_armored_data();
+        let armor_lexer = super::armor_lexer::<&str>();
     }
 }
