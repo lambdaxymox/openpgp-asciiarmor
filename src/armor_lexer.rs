@@ -1,33 +1,11 @@
-use std::str::Chars;
-use std::iter::Iterator;
+#![allow(dead_code)]
+use std::marker::PhantomData;
+use combine::combinator::{Or, Expected, Satisfy};
+use combine::combinator;
+use combine::primitives::Stream;
+use combine::{ParserExt, Parser, ParseResult, ParseError};
+use combine::char;
 
-
-const LOWER_CASE_LETTERS: [char; 26] = [
-        'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 
-        'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'
-    ];
-
-const UPPER_CASE_LETTERS: [char; 26] = [
-        'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 
-        'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'
-    ];
-
-const DIGITS: [char; 10] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
-
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum TokenType {
-    OtherUtf8,
-    UpperCaseLetter,
-    LowerCaseLetter,
-    Digit,
-    EqualSign,
-    Colon,
-    WhiteSpace,
-    NewLine,
-    Comma,
-    ForwardSlash,
-}
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ArmorToken {
@@ -43,210 +21,252 @@ pub enum ArmorToken {
     ForwardSlash(char),
 }
 
-impl ArmorToken {
+macro_rules! lexer_combinator_impl {
+    ( $ name : ident, $ inner_parser_type : ty, $ armor_token : ident ) => {
+        #[derive(Clone)]
+        pub struct $name<I> where I: Stream<Item=char> {
+            inner: $inner_parser_type,
+            _marker: PhantomData<I>,
+        }
 
-    pub fn valid_token(self) -> bool {
-        match self {
-            ArmorToken::UpperCaseLetter(_)  => self.is_upper_case(),
-            ArmorToken::LowerCaseLetter(_)  => self.is_lower_case(),
-            ArmorToken::Digit(token)        => self.is_digit(),
-            ArmorToken::EqualSign(token)    => token == '=',
-            ArmorToken::Colon(token)        => token == ':',
-            ArmorToken::WhiteSpace(token)   => token == ' ',
-            ArmorToken::NewLine(token)      => (token == '\n') || (token == '\r'),
-            ArmorToken::Comma(token)        => token == ',',
-            ArmorToken::ForwardSlash(token) => token == '/',
-            ArmorToken::OtherUtf8(_)        => self.is_other_utf8(),
+        impl<I> Parser for $name<I> where I: Stream<Item=char> {
+            type Input = I;
+            type Output = ArmorToken;
+
+            fn parse_lazy(&mut self, input: Self::Input) -> ParseResult<Self::Output, Self::Input> {
+                let result = self.inner.parse_lazy(input);
+                match result {
+                    Ok((parsed_char, consumed)) => Ok((ArmorToken::$armor_token(parsed_char), consumed)),
+                    Err(e) => Err(e),
+                }
+            }
+
+            fn add_error(&mut self, _error: &mut ParseError<Self::Input>) {
+                self.inner.add_error(_error);
+            }
         }
     }
+}
 
-    pub fn token(self) -> char {
-        match self {
-            ArmorToken::UpperCaseLetter(token) | 
-            ArmorToken::LowerCaseLetter(token) |
-            ArmorToken::Digit(token)           |
-            ArmorToken::EqualSign(token)       |
-            ArmorToken::Colon(token)           |
-            ArmorToken::WhiteSpace(token)      |
-            ArmorToken::NewLine(token)         |
-            ArmorToken::Comma(token)           |
-            ArmorToken::ForwardSlash(token)    |
-            ArmorToken::OtherUtf8(token)       => token,
-        }
+lexer_combinator_impl!(UpperCaseLetter, char::Upper<I>, UpperCaseLetter);
+
+pub fn uppercase_letter<I>() -> UpperCaseLetter<I> 
+    where I: Stream<Item=char> {
+
+    UpperCaseLetter {
+        inner: char::upper(),
+        _marker: PhantomData,
+    }
+}
+
+lexer_combinator_impl!(LowerCaseLetter, char::Lower<I>, LowerCaseLetter);
+
+pub fn lowercase_letter<I>() -> LowerCaseLetter<I> 
+    where I: Stream<Item=char> {
+
+    LowerCaseLetter {
+        inner: char::lower(),
+        _marker: PhantomData,
     }
 
-    pub fn token_type(self) -> TokenType {
-        match self {
-            ArmorToken::UpperCaseLetter(_) => TokenType::UpperCaseLetter,
-            ArmorToken::LowerCaseLetter(_) => TokenType::LowerCaseLetter,
-            ArmorToken::Digit(_)           => TokenType::Digit,
-            ArmorToken::EqualSign(_)       => TokenType::EqualSign,
-            ArmorToken::Colon(_)           => TokenType::Colon,
-            ArmorToken::WhiteSpace(_)      => TokenType::WhiteSpace,
-            ArmorToken::NewLine(_)         => TokenType::NewLine,
-            ArmorToken::Comma(_)           => TokenType::Comma,
-            ArmorToken::ForwardSlash(_)    => TokenType::ForwardSlash,
-            ArmorToken::OtherUtf8(_)       => TokenType::OtherUtf8,
-        }        
-    }
+}
 
-    #[inline]
-    pub fn is_letter(self) -> bool {
-        self.is_upper_case() || self.is_lower_case()
-    }
+lexer_combinator_impl!(EqualSign, combinator::Token<I>, EqualSign);
 
-    pub fn is_upper_case(self) -> bool {
-        match self {
-            ArmorToken::UpperCaseLetter(token) => UPPER_CASE_LETTERS.contains(&token),
-            _ => false,
-        }
+pub fn equal_sign<I>() -> EqualSign<I> where I: Stream<Item=char> {
+    EqualSign { 
+        inner: char::char('='),
+        _marker: PhantomData,
     }
+}
 
-    pub fn is_lower_case(self) -> bool {
-        match self {
-            ArmorToken::LowerCaseLetter(token) => LOWER_CASE_LETTERS.contains(&token),
-            _ => false,
-        }
-    }
+lexer_combinator_impl!(Colon, combinator::Token<I>, Colon);
 
-    pub fn is_digit(self) -> bool {
-        match self {
-            ArmorToken::Digit(token) => DIGITS.contains(&token),
-            _ => false,
-        }
+pub fn colon<I>() -> Colon<I> where I: Stream<Item=char> {
+    Colon {
+        inner: char::char(':'),
+        _marker: PhantomData,
     }
+}
 
-    pub fn is_equal_sign(self) -> bool {
-        match self {
-            ArmorToken::EqualSign(token) => token == '=',
-            _ => false,
-        }
-    }
+lexer_combinator_impl!(Digit, char::Digit<I>, Digit);
 
-    pub fn is_colon(self) -> bool {
-        match self {
-            ArmorToken::Colon(token) => token == ':',
-            _ => false,
-        }
+pub fn digit<I>() -> Digit<I> where I: Stream<Item=char> {
+    Digit {
+        inner: char::digit(),
+        _marker: PhantomData,
     }
+}
 
-    pub fn is_whitespace(self) -> bool {
-        match self {
-            ArmorToken::WhiteSpace(token) => token == ' ',
-            _ => false,
-        }
-    }
+lexer_combinator_impl!(WhiteSpace, char::Space<I>, WhiteSpace);
 
-    pub fn is_newline(self) -> bool {
-        match self {
-            ArmorToken::NewLine(token) => (token == '\n') || (token == '\r'),
-            _ => false,
-        }
+pub fn whitespace<I>() -> WhiteSpace<I> where I: Stream<Item=char> {
+    WhiteSpace {
+        inner: char::space(),
+        _marker: PhantomData,
     }
-    
-    pub fn is_comma(self) -> bool {
-        match self {
-            ArmorToken::Comma(token) => token == ',',
-            _ => false,
-        }
-    }
+}
 
-    pub fn is_forward_slash(self) -> bool {
-        match self {
-            ArmorToken::ForwardSlash(token) => token == '/',
-            _ => false,
-        }
-    }
+lexer_combinator_impl!(Comma, combinator::Token<I>, Comma);
 
-    #[inline]
-    pub fn is_other_utf8(self) -> bool {
-        match self {
-            ArmorToken::OtherUtf8(token) => {
-                is_utf8(token) && !(self.is_upper_case() || self.is_lower_case() 
-                                                         || self.is_digit() 
-                                                         || self.is_equal_sign()
-                                                         || self.is_colon() 
-                                                         || self.is_whitespace() 
-                                                         || self.is_newline() 
-                                                         || self.is_comma() 
-                                                         || self.is_forward_slash()
-                                    )
-            },
-            _ => false,
-        }
+pub fn comma<I>() -> Comma<I> where I: Stream<Item=char> {
+    Comma {
+        inner: char::char(','),
+        _marker: PhantomData,
+    }
+}
+
+lexer_combinator_impl!(ForwardSlash, combinator::Token<I>, ForwardSlash);
+
+pub fn forward_slash<I>() -> ForwardSlash<I> where I: Stream<Item=char> {
+    ForwardSlash {
+        inner: char::char('/'),
+        _marker: PhantomData,
+    }
+}
+
+lexer_combinator_impl!(NewLine, char::NewLine<I>, NewLine);
+
+pub fn newline<I>() -> NewLine<I> where I: Stream<Item=char> {
+    NewLine {
+        inner: char::newline(),
+        _marker: PhantomData,
     }
 }
 
 #[inline]
-fn is_utf8(token: char) -> bool {
-    (token >= 0x00 as char) || (token <= 0xFF as char)
+fn is_utf8(ch: char) -> bool {
+    (ch >= 0x00 as char) || (ch <= 0xFF as char)
 }
 
-fn make_other_token(character: char) -> Option<ArmorToken> {
-    if character.is_uppercase() {
-        Some(ArmorToken::UpperCaseLetter(character))
-    } else if character.is_lowercase() {
-        Some(ArmorToken::LowerCaseLetter(character))
-    } else if character.is_digit(10) {
-        Some(ArmorToken::Digit(character))
-    } else if is_utf8(character) {
-        Some(ArmorToken::OtherUtf8(character))
-    } else {
-        None
+#[inline]
+fn is_whitespace(ch: char) -> bool {
+    ch == ' ' || ch == '\t'
+}
+
+#[inline]
+fn is_newline(ch: char) -> bool {
+    (ch == '\n') || (ch == '\r')
+}
+
+fn is_other_utf8(ch: char) -> bool {
+    is_utf8(ch) && !(is_whitespace(ch) || ch.is_uppercase()
+                                       || ch.is_lowercase()
+                                       || ch.is_digit(10)
+                                       || is_newline(ch)
+                                       || ch == '/' 
+                                       || ch == ',' 
+                                       || ch == ':' 
+                                       || ch == '=')
+}
+
+lexer_combinator_impl!(OtherUtf8, Expected<Satisfy<I, fn(I::Item) -> bool>>, OtherUtf8);
+
+pub fn other_utf8<I>() -> OtherUtf8<I> where I: Stream<Item=char> {
+    OtherUtf8 {
+        inner: combinator::satisfy::<I, fn(char)-> bool>(is_other_utf8).expected("UTF-8 character"),
+        _marker: PhantomData,
     }
 }
 
-pub struct ArmorLexer<'a> {
-    stream: String,
-    chars:  Chars<'a>,
+pub struct InnerArmorLexer<I> where I: Stream<Item=char> {
+    inner: Or<UpperCaseLetter<I>, 
+           Or<LowerCaseLetter<I>, 
+           Or<EqualSign<I>, 
+           Or<Colon<I>, 
+           Or<Digit<I>, 
+           Or<WhiteSpace<I>, 
+           Or<Comma<I>, 
+           Or<ForwardSlash<I>, 
+           Or<NewLine<I>, OtherUtf8<I>>>>>>>>>>,
+
+    _marker: PhantomData<I>,
 }
 
-impl<'a> ArmorLexer<'a> {
-    pub fn new(stream: &str) -> ArmorLexer {
-        let new_stream = String::from(stream);
+impl<I> Parser for InnerArmorLexer<I> where I: Stream<Item=char> {
+    type Input = I;
+    type Output = ArmorToken;
 
-        ArmorLexer {
-            stream: new_stream,
-            chars:  stream.chars(),
+    fn parse_lazy(&mut self, input: Self::Input) -> ParseResult<Self::Output, Self::Input> {
+        self.inner.parse_lazy(input)
+    }
+
+    fn add_error(&mut self, _error: &mut ParseError<Self::Input>) {
+        self.inner.add_error(_error);
+    }
+}
+
+pub fn inner_armor_lexer<I>() -> InnerArmorLexer<I>
+    where I: Stream<Item=char>, 
+{
+    InnerArmorLexer {
+        inner: uppercase_letter().or(lowercase_letter()
+                                 .or(equal_sign()
+                                 .or(colon()
+                                 .or(digit()
+                                 .or(whitespace()
+                                 .or(comma()
+                                 .or(forward_slash()
+                                 .or(newline()
+                                 .or(other_utf8()))))))))),
+        _marker: PhantomData,
+    }
+}
+
+pub struct ArmorLexer<I> where I: Stream<Item=char> {
+    inner: InnerArmorLexer<I>,
+    _marker: PhantomData<I>,
+}
+
+impl<I> Parser for ArmorLexer<I> where I: Stream<Item=char> {
+    type Input = I;
+    type Output = Vec<ArmorToken>;
+
+    fn parse_lazy(&mut self, input: Self::Input) -> ParseResult<Self::Output, Self::Input> {
+        let mut parsed = vec![];
+        let mut consumed = vec![];
+
+        loop {
+            let next_token = self.inner.parse_lazy(input.clone());
+            match next_token {
+                Ok((armor_token, consumed_text)) => {
+                    parsed.push(armor_token);
+                    consumed.push(consumed_text);
+                },
+                Err(e) => {
+                    if e == ParseError::end_of_input() {
+                       break;
+                    } else {
+                        return Err(e)
+                    }
+                }
+            }
         }
+
+        if consumed.is_empty() {
+            // TODO: I am not sure how to handle the errors here.
+            //Err(ParseError::new(primitives::Error::end_of_input()))
+            panic!();
+        }
+
+        Ok((parsed, consumed.pop().unwrap()))
     }
 
-    pub fn next_token(&mut self) -> Option<ArmorToken> {
-        let next_char = self.chars.next();
-
-        match next_char {
-            None                    => None,
-            Some(' ')  | Some('\t') => Some(ArmorToken::WhiteSpace(' ')),
-            Some('\n') | Some('\r') => Some(ArmorToken::NewLine('\n')),
-            Some('=')               => Some(ArmorToken::EqualSign('=')),
-            Some('/')               => Some(ArmorToken::ForwardSlash('/')),
-            Some(':')               => Some(ArmorToken::Colon(':')),
-            Some(',')               => Some(ArmorToken::Comma(',')), 
-            Some(character)         => make_other_token(character),
-        } 
-    }
-
-    pub fn reset(&'a mut self) {
-        self.chars = self.stream.chars();
+    fn add_error(&mut self, _error: &mut ParseError<Self::Input>) {
+        self.inner.add_error(_error);
     }
 }
 
-impl<'a> Iterator for ArmorLexer<'a> {
-    type Item = ArmorToken;
-
-    fn next(&mut self) -> Option<ArmorToken> {
-        self.next_token()
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        self.chars.size_hint()
+pub fn armor_lexer<I>() -> ArmorLexer<I> where I: Stream<Item=char> {
+    ArmorLexer {
+        inner: inner_armor_lexer(),
+        _marker: PhantomData,
     }
 }
-
 
 #[cfg(test)]
 mod tests {
-    use super::ArmorLexer;
+    use combine::Parser;
     use std::io;
     use std::io::Write;
 
@@ -265,11 +285,10 @@ mod tests {
     #[test]
     fn test_armor_lexer() {
         let armored_data = ascii_armored_data();
-        let armor_lexer = ArmorLexer::new(&armored_data);
+        let mut armor_lexer = super::armor_lexer::<&str>();
 
-        for token in armor_lexer {
-            assert!(token.valid_token());
-            writeln!(&mut io::stderr(), "{:?}", token).unwrap();
-        }
+        let result = armor_lexer.parse(armored_data.as_ref());
+
+        assert!(result.is_ok());
     }
 }
