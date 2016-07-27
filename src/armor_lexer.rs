@@ -169,15 +169,15 @@ fn is_utf8(token: char) -> bool {
     (token >= 0x00 as char) || (token <= 0xFF as char)
 }
 
-fn make_other_token(character: char) -> Option<ArmorToken> {
-    if character.is_uppercase() {
-        Some(ArmorToken::UpperCaseLetter(character))
-    } else if character.is_lowercase() {
-        Some(ArmorToken::LowerCaseLetter(character))
-    } else if character.is_digit(10) {
-        Some(ArmorToken::Digit(character))
-    } else if is_utf8(character) {
-        Some(ArmorToken::OtherUtf8(character))
+fn make_other_token(ch: char) -> Option<ArmorToken> {
+    if ch.is_uppercase() {
+        Some(ArmorToken::UpperCaseLetter(ch))
+    } else if ch.is_lowercase() {
+        Some(ArmorToken::LowerCaseLetter(ch))
+    } else if ch.is_digit(10) {
+        Some(ArmorToken::Digit(ch))
+    } else if is_utf8(ch) {
+        Some(ArmorToken::OtherUtf8(ch))
     } else {
         None
     }
