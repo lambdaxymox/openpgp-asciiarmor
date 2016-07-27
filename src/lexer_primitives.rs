@@ -153,23 +153,7 @@ fn is_other_utf8(ch: char) -> bool {
                                        || ch == '=')
 }
 
-pub struct OtherUtf8<I> where I: Stream<Item=char> {
-    inner: Expected<Satisfy<I, fn(I::Item) -> bool>>,
-    _marker: PhantomData<I>,
-}
-
-impl<I> Parser for OtherUtf8<I> where I: Stream<Item=char> { 
-    type Input = I;
-    type Output = <Expected<Satisfy<I, fn(I::Item) -> bool>> as Parser>::Output;
-
-    fn parse_lazy(&mut self, input: Self::Input) -> ParseResult<Self::Output, Self::Input> {
-        self.inner.parse_lazy(input)
-    }
-
-    fn add_error(&mut self, _error: &mut ParseError<Self::Input>) {
-        self.inner.add_error(_error);
-    }
-}
+lexer_combinator_impl!(OtherUtf8, Expected<Satisfy<I, fn(I::Item) -> bool>>);
 
 pub fn other_utf8<I>() -> OtherUtf8<I> where I: Stream<Item=char> {
     OtherUtf8 {
