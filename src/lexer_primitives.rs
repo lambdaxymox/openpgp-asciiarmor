@@ -4,7 +4,16 @@ use combine::{Parser, ParseResult, ParseError};
 use combine::char;
 
 
-macro_rules! lexer_combinator_impl {
+macro_rules! lexer_combinator_def {
+    ( $ name : ident, $ inner_parser_type : ty ) => {
+        #[derive(Clone)]
+        pub struct $name<I> where I: Stream<Item=char> {
+            inner: $inner_parser_type
+        }
+    }
+}
+
+macro_rules! lexer_combinator_parser_impl {
     ( $ name : ident, $ inner_parser_type : ty ) => {
         impl<I> Parser for $name<I> where I: Stream<Item=char> {
             type Input = I;
@@ -21,10 +30,15 @@ macro_rules! lexer_combinator_impl {
     }
 }
 
-#[derive(Clone)]
-pub struct UpperCaseLetter<I> where I: Stream<Item=char> {
-    inner: char::Upper<I>,
+macro_rules! lexer_combinator_impl {
+    ( $ name : ident, $ inner_parser_type : ty ) => {
+        lexer_combinator_def!($name, $inner_parser_type);
+
+        lexer_combinator_parser_impl!($name, $inner_parser_type);
+    }
 }
+
+lexer_combinator_impl!(UpperCaseLetter, char::Upper<I>);
 
 pub fn uppercase_letter<I>() -> UpperCaseLetter<I> 
     where I: Stream<Item=char> {
@@ -34,26 +48,7 @@ pub fn uppercase_letter<I>() -> UpperCaseLetter<I>
     }
 }
 
-lexer_combinator_impl!(UpperCaseLetter, char::Upper<I>);
-/*
-impl<I> Parser for UpperCaseLetter<I> where I: Stream<Item=char> {
-    type Input = I;
-    type Output = <Upper<I> as Parser>::Output;
-
-    fn parse_lazy(&mut self, input: Self::Input) -> ParseResult<Self::Output, Self::Input> {
-        self.inner.parse_lazy(input)
-    }
-
-    fn add_error(&mut self, _error: &mut ParseError<Self::Input>) {
-        self.inner.add_error(_error);
-    }
-}
-*/
-
-#[derive(Clone)]
-pub struct LowerCaseLetter<I> where I: Stream<Item=char> {
-    inner: char::Lower<I>,
-}
+lexer_combinator_impl!(LowerCaseLetter, char::Lower<I>);
 
 pub fn lowercase_letter<I>() -> LowerCaseLetter<I> 
     where I: Stream<Item=char> {
@@ -64,26 +59,7 @@ pub fn lowercase_letter<I>() -> LowerCaseLetter<I>
 
 }
 
-lexer_combinator_impl!(LowerCaseLetter, char::Lower<I>);
-/*
-impl<I> Parser for LowerCaseLetter<I> where I: Stream<Item=char> {
-    type Input = I;
-    type Output = <Lower<I> as Parser>::Output;
-
-    fn parse_lazy(&mut self, input: Self::Input) -> ParseResult<Self::Output, Self::Input> {
-        self.inner.parse_lazy(input)
-    }
-
-    fn add_error(&mut self, _error: &mut ParseError<Self::Input>) {
-        self.inner.add_error(_error);
-    }
-}
-*/
-
-#[derive(Clone)]
-pub struct EqualSign<I> where I: Stream<Item=char> {
-    inner: combinator::Token<I>,
-}
+lexer_combinator_impl!(EqualSign, combinator::Token<I>);
 
 pub fn equal_sign<I>() -> EqualSign<I> where I: Stream<Item=char> {
     EqualSign { 
@@ -91,27 +67,7 @@ pub fn equal_sign<I>() -> EqualSign<I> where I: Stream<Item=char> {
     }
 }
 
-lexer_combinator_impl!(EqualSign, combinator::Token<I>);
-
-/*
-impl<I> Parser for EqualSign<I> where I: Stream<Item=char> {
-    type Input = I;
-    type Output = <Token<I> as Parser>::Output;
-
-    fn parse_lazy(&mut self, input: Self::Input) -> ParseResult<Self::Output, Self::Input> {
-        self.inner.parse_lazy(input)
-    }
-
-    fn add_error(&mut self, _error: &mut ParseError<Self::Input>) {
-        self.inner.add_error(_error);
-    }
-}
-*/
-
-#[derive(Clone)]
-pub struct Colon<I> where I: Stream<Item=char> {
-    inner: combinator::Token<I>,
-}
+lexer_combinator_impl!(Colon, combinator::Token<I>);
 
 pub fn colon<I>() -> Colon<I> where I: Stream<Item=char> {
     Colon {
@@ -119,27 +75,7 @@ pub fn colon<I>() -> Colon<I> where I: Stream<Item=char> {
     }
 }
 
-lexer_combinator_impl!(Colon, combinator::Token<I>);
-
-/*
-impl<I> Parser for Colon<I> where I: Stream<Item=char> {
-    type Input = I;
-    type Output = <Token<I> as Parser>::Output;
-
-    fn parse_lazy(&mut self, input: Self::Input) -> ParseResult<Self::Output, Self::Input> {
-        self.inner.parse_lazy(input)
-    }
-
-    fn add_error(&mut self, _error: &mut ParseError<Self::Input>) {
-        self.inner.add_error(_error);
-    }
-}
-*/
-
-#[derive(Clone)]
-pub struct Digit<I> where I: Stream<Item=char> {
-    inner: char::Digit<I>,
-}
+lexer_combinator_impl!(Digit, char::Digit<I>);
 
 pub fn digit<I>() -> Digit<I> where I: Stream<Item=char> {
     Digit {
@@ -147,26 +83,7 @@ pub fn digit<I>() -> Digit<I> where I: Stream<Item=char> {
     }
 }
 
-lexer_combinator_impl!(Digit, char::Digit<I>);
-/*
-impl<I> Parser for Digit<I> where I: Stream<Item=char> {
-    type Input = I;
-    type Output = <char::Digit<I> as Parser>::Output;
-
-    fn parse_lazy(&mut self, input: Self::Input) -> ParseResult<Self::Output, Self::Input> {
-        self.inner.parse_lazy(input)
-    }
-
-    fn add_error(&mut self, _error: &mut ParseError<Self::Input>) {
-        self.inner.add_error(_error);
-    }
-}
-*/
-
-#[derive(Clone)]
-pub struct WhiteSpace<I> where I: Stream<Item=char> {
-    inner: char::Space<I>,
-}
+lexer_combinator_impl!(WhiteSpace, char::Space<I>);
 
 pub fn whitespace<I>() -> WhiteSpace<I> where I: Stream<Item=char> {
     WhiteSpace {
@@ -174,26 +91,7 @@ pub fn whitespace<I>() -> WhiteSpace<I> where I: Stream<Item=char> {
     }
 }
 
-lexer_combinator_impl!(WhiteSpace, char::Space<I>);
-/*
-impl<I> Parser for WhiteSpace<I> where I: Stream<Item=char> {
-    type Input = I;
-    type Output = <char::Space<I> as Parser>::Output;
-
-    fn parse_lazy(&mut self, input: Self::Input) -> ParseResult<Self::Output, Self::Input> {
-        self.inner.parse_lazy(input)
-    }
-
-    fn add_error(&mut self, _error: &mut ParseError<Self::Input>) {
-        self.inner.add_error(_error);
-    }
-}
-*/
-
-#[derive(Clone)]
-pub struct Comma<I> where I: Stream<Item=char> {
-    inner: combinator::Token<I>,
-}
+lexer_combinator_impl!(Comma, combinator::Token<I>);
 
 pub fn comma<I>() -> Comma<I> where I: Stream<Item=char> {
     Comma {
@@ -201,27 +99,7 @@ pub fn comma<I>() -> Comma<I> where I: Stream<Item=char> {
     }
 }
 
-lexer_combinator_impl!(Comma, combinator::Token<I>);
-/*
-impl<I> Parser for Comma<I> where I: Stream<Item=char> {
-    type Input = I;
-    type Output = <Token<I> as Parser>::Output;
-
-    fn parse_lazy(&mut self, input: Self::Input) -> ParseResult<Self::Output, Self::Input> {
-        self.inner.parse_lazy(input)
-    }
-
-    fn add_error(&mut self, _error: &mut ParseError<Self::Input>) {
-        self.inner.add_error(_error);
-    }
-}
-
-*/
-
-#[derive(Clone)]
-pub struct ForwardSlash<I> where I: Stream<Item=char> {
-    inner: combinator::Token<I>,
-}
+lexer_combinator_impl!(ForwardSlash, combinator::Token<I>);
 
 pub fn forward_slash<I>() -> ForwardSlash<I> where I: Stream<Item=char> {
     ForwardSlash {
@@ -229,48 +107,13 @@ pub fn forward_slash<I>() -> ForwardSlash<I> where I: Stream<Item=char> {
     }
 }
 
-lexer_combinator_impl!(ForwardSlash, combinator::Token<I>);
-/*
-impl<I> Parser for ForwardSlash<I> where I: Stream<Item=char> {
-    type Input = I;
-    type Output = <Token<I> as Parser>::Output;
-
-    fn parse_lazy(&mut self, input: Self::Input) -> ParseResult<Self::Output, Self::Input> {
-        self.inner.parse_lazy(input)
-    }
-
-    fn add_error(&mut self, _error: &mut ParseError<Self::Input>) {
-        self.inner.add_error(_error);
-    }
-}
-*/
-
-#[derive(Clone)]
-pub struct NewLine<I> where I: Stream<Item=char> {
-    inner: char::NewLine<I>,
-}
+lexer_combinator_impl!(NewLine, char::NewLine<I>);
 
 pub fn newline<I>() -> NewLine<I> where I: Stream<Item=char> {
     NewLine {
         inner: char::newline(),
     }
 }
-
-lexer_combinator_impl!(NewLine, char::NewLine<I>);
-/*
-impl<I> Parser for NewLine<I> where I: Stream<Item=char> {
-    type Input = I;
-    type Output = <char::NewLine<I> as Parser>::Output;
-
-    fn parse_lazy(&mut self, input: Self::Input) -> ParseResult<Self::Output, Self::Input> {
-        self.inner.parse_lazy(input)
-    }
-
-    fn add_error(&mut self, _error: &mut ParseError<Self::Input>) {
-        self.inner.add_error(_error);
-    }
-}
-*/
 
 /*
 pub struct ArmorLexer<I> where I: Stream<Item=char> {
