@@ -2,19 +2,6 @@ use std::str::Chars;
 use std::iter::Iterator;
 
 
-const LOWER_CASE_LETTERS: [char; 26] = [
-        'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 
-        'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'
-    ];
-
-const UPPER_CASE_LETTERS: [char; 26] = [
-        'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 
-        'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'
-    ];
-
-const DIGITS: [char; 10] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
-
-
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum TokenType {
     OtherUtf8,
@@ -97,21 +84,21 @@ impl ArmorToken {
 
     pub fn is_upper_case(self) -> bool {
         match self {
-            ArmorToken::UpperCaseLetter(token) => UPPER_CASE_LETTERS.contains(&token),
+            ArmorToken::UpperCaseLetter(token) => token.is_uppercase(),
             _ => false,
         }
     }
 
     pub fn is_lower_case(self) -> bool {
         match self {
-            ArmorToken::LowerCaseLetter(token) => LOWER_CASE_LETTERS.contains(&token),
+            ArmorToken::LowerCaseLetter(token) => token.is_lowercase(),
             _ => false,
         }
     }
 
     pub fn is_digit(self) -> bool {
         match self {
-            ArmorToken::Digit(token) => DIGITS.contains(&token),
+            ArmorToken::Digit(token) => token.is_digit(10),
             _ => false,
         }
     }
