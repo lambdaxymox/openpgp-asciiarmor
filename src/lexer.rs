@@ -59,6 +59,7 @@ impl TokenType {
             TokenType::PGPPublicKeyBlock  => Some("PUBLIC KEY BLOCK"),
             TokenType::PGPPrivateKeyBlock => Some("PRIVATE KEY BLOCK"),
             TokenType::PGPMessagePart     => Some("PGP MESSAGE, PART "),
+            TokenType::PGPSignature       => Some("SIGNATURE"),
             _ => None
         }
     }
@@ -87,6 +88,7 @@ fn string_to_token_type(token_string: &str) -> Option<TokenType> {
         "PUBLIC KEY BLOCK"   => Some(TokenType::PGPPublicKeyBlock),
         "PRIVATE KEY BLOCK"  => Some(TokenType::PGPPrivateKeyBlock),
         "PGP MESSAGE, PART " => Some(TokenType::PGPMessagePart),
+        "SIGNATURE"          => Some(TokenType::PGPSignature),
         _ => None
     }
 }
@@ -217,12 +219,104 @@ impl<S> Lexer<S> where S: Iterator<Item=char> {
         Some(Token::new(token_type, token_string, location))
     }
 
+    #[inline]
+    fn scan_symbol(&mut self, token_type: TokenType) -> Option<Token> {
+        self.match_terminal_symbol(token_type.armor_string().unwrap())
+    }
+
     fn scan_five_dashes(&mut self) -> Option<Token> {
-        self.match_terminal_symbol(TokenType::FiveDashes.armor_string().unwrap())
+        self.scan_symbol(TokenType::FiveDashes)
+    }
+
+    fn scan_colon_space(&mut self) -> Option<Token> {
+        self.scan_symbol(TokenType::ColonSpace)
+    }
+
+    fn scan_forwardslash(&mut self) -> Option<Token> {
+        self.scan_symbol(TokenType::ForwardSlash)
+    }
+
+    fn scan_colon(&mut self) -> Option<Token> {
+        self.scan_symbol(TokenType::Colon)
+    }
+
+    fn scan_one_pad_symbol(&mut self) -> Option<Token> {
+        self.scan_symbol(TokenType::Pad)
+    }
+
+    fn scan_one_whitespace_symbol(&mut self) -> Option<Token> {
+        self.scan_symbol(TokenType::WhiteSpace)
+    }
+
+    fn scan_comma(&mut self) -> Option<Token> {
+        self.scan_symbol(TokenType::Comma)
+    }
+
+    fn scan_newline(&mut self) -> Option<Token> {
+        self.scan_symbol(TokenType::NewLine)
+    }
+
+    fn scan_begin(&mut self) -> Option<Token> {
+        self.scan_symbol(TokenType::Begin)
+    }
+
+    fn scan_end(&mut self) -> Option<Token> {
+        self.scan_symbol(TokenType::End)
+    }
+
+    fn scan_version(&mut self) -> Option<Token> {
+        self.scan_symbol(TokenType::Version)
+    }
+
+    fn scan_comment(&mut self) -> Option<Token> {
+        self.scan_symbol(TokenType::Comment)
+    }
+
+    fn scan_messageid(&mut self) -> Option<Token> {
+        self.scan_symbol(TokenType::MessageID)
+    }
+
+    fn scan_hash(&mut self) -> Option<Token> {
+        self.scan_symbol(TokenType::Hash)
+    }
+
+    fn scan_charset(&mut self) -> Option<Token> {
+        self.scan_symbol(TokenType::Charset)
     }
 
     fn scan_pgp_symbol(&mut self) -> Option<Token> {
-        self.match_terminal_symbol(TokenType::PGPSymbol.armor_string().unwrap())
+        self.scan_symbol(TokenType::PGPSymbol)
+    }
+
+    fn scan_pgp_message(&mut self) -> Option<Token> {
+        self.scan_symbol(TokenType::PGPMessage)
+    }
+
+    fn scan_pgp_public_key_block(&mut self) -> Option<Token> {
+        self.scan_symbol(TokenType::PGPPublicKeyBlock)
+    }
+
+    fn scan_pgp_private_key_block(&mut self) -> Option<Token> {
+        self.scan_symbol(TokenType::PGPPrivateKeyBlock)
+    }
+
+    fn scan_pgp_message_part(&mut self) -> Option<Token> {
+        self.scan_symbol(TokenType::PGPMessagePart)
+    }
+
+    fn scan_pgp_signature(&mut self) -> Option<Token> {
+        self.scan_symbol(TokenType::PGPSignature)
+    }
+
+    fn scan_eof(&mut self) -> Option<Token> {
+        match self.peek_char() {
+            Some(char) => None,
+            None => {
+                let token_string = TokenType::Eof.armor_string().unwrap();
+
+                Some(Token::new(TokenType::Eof, token_string, self.location))
+            }
+        }
     }
 }
 
