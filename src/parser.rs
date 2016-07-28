@@ -1,4 +1,5 @@
-use armor_lexer::{TokenType, ArmorToken, ArmorLexer};
+/*
+use lexer::{TokenType, ArmorToken, ArmorLexer};
 
 
 pub struct ArmorParser<'a> {
@@ -176,3 +177,4 @@ impl<'a> ArmorParser<'a> {
 mod tests {
 
 }
+*/
