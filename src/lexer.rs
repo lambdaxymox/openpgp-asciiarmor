@@ -218,22 +218,7 @@ impl<S> Lexer<S> where S: Iterator<Item=char> {
     }
 
     fn scan_five_dashes(&mut self) -> Option<Token> {
-        let mut result = String::new();
-        for i in 0..5 {
-            match self.peek_char() {
-                Some('-') => {
-                    self.read_char();
-                    result.push('-');
-                },
-                _ => break
-            }
-        }
-
-        if result.len() < 5 {
-            return None;
-        }
-
-        Some(Token::new(TokenType::FiveDashes, result.as_str(), self.location))
+        self.match_terminal_symbol(TokenType::FiveDashes.armor_string().unwrap())
     }
 
     fn scan_pgp_symbol(&mut self) -> Option<Token> {
