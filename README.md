@@ -1,5 +1,5 @@
 # OpenPGP Ascii Armor
-A Rust implementation of the OpenPGP Ascii Armor format from RFC4880. See 
+A Rust implementation of the OpenPGP Ascii Armor format from RFC4880. See
 section 6 of RFC4880.
 
 # Ascii Armor Grammar
@@ -14,9 +14,10 @@ Digit               := '0' | '1' | ... | '9'
 Number              := (Digit)+
 EqualSign           := '='
 Pad                 := EqualSign
-NonPaddedBase64     := Letter | Number | ForwardSlash
+NonPaddedBase64     := Letter | Number | ForwardSlash | PlusSign
 Base64              := NonPaddedBase64 | Pad
 ForwardSlash        := '/'
+PlusSign            := '+'
 Colon               := ':'
 Whitespace          := ' '
 ColonSpace          := Colon Whitespace
