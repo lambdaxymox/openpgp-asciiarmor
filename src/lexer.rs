@@ -1,4 +1,3 @@
-use std::str::Chars;
 use std::iter::Iterator;
 use std::collections::VecDeque;
 use std::iter::Peekable;
@@ -234,7 +233,11 @@ impl<S> Lexer<S>
                 if result.is_some() {
                     return result.unwrap();
                 }
-                let result = self.scan_pgp_message();
+                let result = self.scan_pgp_message_part();
+                if result.is_some() {
+                    return result.unwrap();
+                }
+                let result = self.scan_pgp_message_part();
                 if result.is_some() {
                     return result.unwrap();
                 }
@@ -288,7 +291,7 @@ impl<S> Lexer<S>
         }
     }
 
-    fn consumeN(&mut self, amount: usize) {
+    fn consume_ntimes(&mut self, amount: usize) {
         self.location.increment(amount);
     }
 
@@ -296,7 +299,7 @@ impl<S> Lexer<S>
         self.location.increment(1);
     }
 
-    fn backtrackN(&mut self, amount: usize) {
+    fn backtrack_ntimes(&mut self, amount: usize) {
         self.location.decrement(amount);
     }
 
@@ -315,7 +318,7 @@ impl<S> Lexer<S>
                         self.read_char();
                         result.push(other_ch);
                     } else {
-                        self.backtrackN(result.len());
+                        self.backtrack_ntimes(result.len());
                         return None;
                     }
                 }
@@ -528,7 +531,7 @@ impl<S> Lexer<S>
                     break;
                 }
                 _ => {
-                    self.backtrackN(result.len());
+                    self.backtrack_ntimes(result.len());
                     return None;
                 }
             }
@@ -547,7 +550,7 @@ impl<S> Lexer<S>
             None => {
                 let token_string = TokenType::Eof.armor_string().unwrap();
 
-                Some(Token::new(TokenType::Eof, token_string, self.location))
+                Some(Token::new(TokenType::Eof, token_string, Location::eof()))
             }
         }
     }
