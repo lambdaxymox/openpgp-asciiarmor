@@ -15,6 +15,7 @@ pub enum TokenType {
     Letter,
     PlusSign,
     WhiteSpace,
+    OtherUTF8,
     ColonSpace,
     NewLine,
     FiveDashes,
@@ -26,7 +27,6 @@ pub enum TokenType {
     Hash,
     Charset,
     BlankLine,
-    PGPSymbol,
     PGPMessage,
     PGPPublicKeyBlock,
     PGPPrivateKeyBlock,
@@ -55,12 +55,11 @@ impl TokenType {
             TokenType::Hash => Some("Hash"),
             TokenType::Charset => Some("Charset"),
             TokenType::Eof => Some("EOF"),
-            TokenType::PGPSymbol => Some("PGP "),
-            TokenType::PGPMessage => Some("MESSAGE"),
-            TokenType::PGPPublicKeyBlock => Some("PUBLIC KEY BLOCK"),
-            TokenType::PGPPrivateKeyBlock => Some("PRIVATE KEY BLOCK"),
+            TokenType::PGPMessage => Some("PGP MESSAGE"),
+            TokenType::PGPPublicKeyBlock => Some("PGP PUBLIC KEY BLOCK"),
+            TokenType::PGPPrivateKeyBlock => Some("PGP PRIVATE KEY BLOCK"),
             TokenType::PGPMessagePart => Some("PGP MESSAGE, PART "),
-            TokenType::PGPSignature => Some("SIGNATURE"),
+            TokenType::PGPSignature => Some("PGP SIGNATURE"),
             _ => None,
         }
     }
@@ -85,12 +84,11 @@ fn string_to_token_type(token_string: &str) -> Option<TokenType> {
         "Hash" => Some(TokenType::Hash),
         "Charset" => Some(TokenType::Charset),
         "EOF" => Some(TokenType::Eof),
-        "PGP " => Some(TokenType::PGPSymbol),
-        "MESSAGE" => Some(TokenType::PGPMessage),
-        "PUBLIC KEY BLOCK" => Some(TokenType::PGPPublicKeyBlock),
-        "PRIVATE KEY BLOCK" => Some(TokenType::PGPPrivateKeyBlock),
+        "PGP MESSAGE" => Some(TokenType::PGPMessage),
+        "PGP PUBLIC KEY BLOCK" => Some(TokenType::PGPPublicKeyBlock),
+        "PGP PRIVATE KEY BLOCK" => Some(TokenType::PGPPrivateKeyBlock),
         "PGP MESSAGE, PART " => Some(TokenType::PGPMessagePart),
-        "SIGNATURE" => Some(TokenType::PGPSignature),
+        "PGP SIGNATURE" => Some(TokenType::PGPSignature),
         _ => None,
     }
 }
@@ -163,10 +161,121 @@ impl<S> Lexer<S>
     }
 
     // TODO: Implement next_token.
-    // pub fn next_token(&mut self) -> Token {
-    //
-    // }
-    //
+    pub fn next_token(&mut self) -> Token {
+        match self.peek_char() {
+            Some('-') => {
+                let result = self.scan_five_dashes();
+                if result.is_some() {
+                    result.unwrap()
+                } else {
+                    self.scan_other_utf8().unwrap()
+                }
+            }
+            Some('=') => self.scan_pad_symbol().unwrap(),
+            Some('/') => self.scan_forwardslash().unwrap(),
+            Some(':') => {
+                let result = self.scan_colon_space();
+                if result.is_some() {
+                    result.unwrap()
+                } else {
+                    self.scan_colon().unwrap()
+                }
+            }
+            Some('+') => self.scan_plus_sign().unwrap(),
+            Some(',') => self.scan_comma().unwrap(),
+            Some(' ') => self.scan_whitespace_symbol().unwrap(),
+            Some('B') => {
+                let result = self.scan_begin();
+                if result.is_some() {
+                    result.unwrap()
+                } else {
+                    self.scan_letter().unwrap()
+                }
+            }
+            Some('E') => {
+                let result = self.scan_end();
+                if result.is_some() {
+                    result.unwrap()
+                } else {
+                    self.scan_letter().unwrap()
+                }
+            }
+            Some('V') => {
+                let result = self.scan_version();
+                if result.is_some() {
+                    result.unwrap()
+                } else {
+                    self.scan_letter().unwrap()
+                }
+            }
+            Some('C') => {
+                let result = self.scan_comment();
+                if result.is_some() {
+                    return result.unwrap();
+                }
+                let result = self.scan_charset();
+                if result.is_some() {
+                    return result.unwrap();
+                } else {
+                    self.scan_letter().unwrap()
+                }
+            }
+            Some('H') => {
+                let result = self.scan_hash();
+                if result.is_some() {
+                    result.unwrap()
+                } else {
+                    self.scan_letter().unwrap()
+                }
+            }
+            Some('P') => {
+                let result = self.scan_pgp_message();
+                if result.is_some() {
+                    return result.unwrap();
+                }
+                let result = self.scan_pgp_public_key_block();
+                if result.is_some() {
+                    return result.unwrap();
+                }
+                let result = self.scan_pgp_private_key_block();
+                if result.is_some() {
+                    return result.unwrap();
+                }
+                let result = self.scan_pgp_message();
+                if result.is_some() {
+                    return result.unwrap();
+                }
+                let result = self.scan_pgp_signature();
+                if result.is_some() {
+                    result.unwrap()
+                } else {
+                    self.scan_letter().unwrap()
+                }
+            }
+            Some('M') => {
+                let result = self.scan_messageid();
+                if result.is_some() {
+                    result.unwrap()
+                } else {
+                    self.scan_letter().unwrap()
+                }
+            }
+            Some('\n') => {
+                let result = self.scan_blankline();
+                if result.is_some() {
+                    result.unwrap()
+                } else {
+                    self.scan_newline().unwrap()
+                }
+            }
+            Some(digit @ '0'...'9') => self.scan_digit().unwrap(),
+            Some(letter @ 'a'...'z') => self.scan_letter().unwrap(),
+            Some(capital_letter @ 'A'...'Z') => self.scan_letter().unwrap(),
+            Some(other_char) => self.scan_other_utf8().unwrap(),
+            None => self.scan_eof().unwrap(),
+        }
+    }
+
 
     fn peek_char(&mut self) -> Option<char> {
         self.input.peek().map(|c| *c)
@@ -247,11 +356,11 @@ impl<S> Lexer<S>
         self.scan_symbol(TokenType::PlusSign)
     }
 
-    fn scan_one_pad_symbol(&mut self) -> Option<Token> {
+    fn scan_pad_symbol(&mut self) -> Option<Token> {
         self.scan_symbol(TokenType::Pad)
     }
 
-    fn scan_one_whitespace_symbol(&mut self) -> Option<Token> {
+    fn scan_whitespace_symbol(&mut self) -> Option<Token> {
         self.scan_symbol(TokenType::WhiteSpace)
     }
 
@@ -291,10 +400,6 @@ impl<S> Lexer<S>
         self.scan_symbol(TokenType::Charset)
     }
 
-    fn scan_pgp_symbol(&mut self) -> Option<Token> {
-        self.scan_symbol(TokenType::PGPSymbol)
-    }
-
     fn scan_pgp_message(&mut self) -> Option<Token> {
         self.scan_symbol(TokenType::PGPMessage)
     }
@@ -313,6 +418,10 @@ impl<S> Lexer<S>
 
     fn scan_pgp_signature(&mut self) -> Option<Token> {
         self.scan_symbol(TokenType::PGPSignature)
+    }
+
+    fn scan_other_utf8(&mut self) -> Option<Token> {
+        self.scan_symbol(TokenType::OtherUTF8)
     }
 
     fn process_char(&mut self, ch: &str) -> Option<Token> {
@@ -393,6 +502,45 @@ impl<S> Lexer<S>
             Some('8') => self.process_char("8"),
             Some('9') => self.process_char("9"),
             _ => None,
+        }
+    }
+
+    fn scan_blankline(&mut self) -> Option<Token> {
+        let mut result = String::new();
+        let location = self.location;
+
+        match self.peek_char() {
+            Some('\n') => {
+                result.push('\n');
+                self.read_char();
+            }
+            _ => {
+                return None;
+            }
+        }
+
+        loop {
+            match self.peek_char() {
+                Some(' ') => {
+                    result.push(' ');
+                    self.read_char();
+                }
+                Some('\n') => {
+                    result.push('\n');
+                    self.read_char();
+                    break;
+                }
+                _ => {
+                    self.backtrackN(result.len());
+                    return None;
+                }
+            }
+        }
+
+        if result.is_empty() {
+            None
+        } else {
+            Some(Token::new(TokenType::BlankLine, result.as_str(), location))
         }
     }
 
