@@ -72,6 +72,7 @@ fn string_to_token_type(token_string: &str) -> Option<TokenType> {
         "/" => Some(TokenType::ForwardSlash),
         ":" => Some(TokenType::Colon),
         "," => Some(TokenType::Comma),
+        "+" => Some(TokenType::PlusSign),
         " " => Some(TokenType::WhiteSpace),
         ": " => Some(TokenType::ColonSpace),
         "\n" => Some(TokenType::NewLine),
