@@ -140,9 +140,6 @@ pub struct Lexer<S>
 {
     input: Peekable<S>,
     location: Location,
-    tokens: VecDeque<Token>,
-    unprocessed_tokens: Vec<Token>,
-    offset: usize,
 }
 
 impl<S> Lexer<S>
@@ -154,9 +151,6 @@ impl<S> Lexer<S>
         Lexer {
             input: input.peekable(),
             location: start,
-            tokens: VecDeque::with_capacity(20),
-            unprocessed_tokens: Vec::new(),
-            offset: 0,
         }
     }
 
@@ -246,9 +240,13 @@ impl<S> Lexer<S>
                 }
                 let result = self.scan_pgp_signature();
                 if result.is_some() {
-                    result.unwrap()
+                    return result.unwrap();
+                }
+                let result = self.scan_letter();
+                if result.is_some() {
+                    return result.unwrap();
                 } else {
-                    self.scan_letter().unwrap()
+                    unreachable!();
                 }
             }
             Some('M') => {
@@ -267,11 +265,11 @@ impl<S> Lexer<S>
                     self.scan_newline().unwrap()
                 }
             }
-            Some(digit @ '0'...'9') => self.scan_digit().unwrap(),
-            Some(letter @ 'a'...'z') => self.scan_letter().unwrap(),
-            Some(capital_letter @ 'A'...'Z') => self.scan_letter().unwrap(),
-            Some(other_char) => self.scan_other_utf8().unwrap(),
-            None => self.scan_eof().unwrap(),
+            Some('0'...'9') => self.scan_digit().unwrap(),
+            Some('a'...'z') => self.scan_letter().unwrap(),
+            Some('A'...'Z') => self.scan_letter().unwrap(),
+            Some(_) => self.scan_other_utf8().unwrap(),
+            None    => self.scan_eof().unwrap(),
         }
     }
 
