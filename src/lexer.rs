@@ -1,4 +1,4 @@
-// use std::str::Chars;
+use std::str::Chars;
 use std::iter::Iterator;
 use std::collections::VecDeque;
 use std::iter::Peekable;
@@ -93,7 +93,7 @@ fn string_to_token_type(token_string: &str) -> Option<TokenType> {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub struct Location {
     pub absolute: isize,
 }
@@ -114,7 +114,7 @@ impl Location {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Token {
     token_type: TokenType,
     text: String,
@@ -423,83 +423,83 @@ impl<S> Lexer<S>
         self.scan_symbol(TokenType::OtherUTF8)
     }
 
-    fn process_char(&mut self, ch: &str) -> Option<Token> {
-        let result = Some(Token::new(TokenType::Digit, ch, self.location));
-        self.consume();
+    fn process_char(&mut self, ch: &str, token_type: TokenType) -> Option<Token> {
+        let result = Some(Token::new(token_type, ch, self.location));
+        self.read_char();
 
         result
     }
 
     fn scan_letter(&mut self) -> Option<Token> {
         match self.peek_char() {
-            Some('a') => self.process_char("a"),
-            Some('b') => self.process_char("b"),
-            Some('c') => self.process_char("c"),
-            Some('d') => self.process_char("d"),
-            Some('e') => self.process_char("e"),
-            Some('f') => self.process_char("f"),
-            Some('g') => self.process_char("g"),
-            Some('h') => self.process_char("h"),
-            Some('i') => self.process_char("i"),
-            Some('j') => self.process_char("j"),
-            Some('k') => self.process_char("k"),
-            Some('l') => self.process_char("l"),
-            Some('m') => self.process_char("m"),
-            Some('n') => self.process_char("n"),
-            Some('o') => self.process_char("o"),
-            Some('p') => self.process_char("p"),
-            Some('q') => self.process_char("q"),
-            Some('r') => self.process_char("r"),
-            Some('s') => self.process_char("s"),
-            Some('t') => self.process_char("t"),
-            Some('u') => self.process_char("u"),
-            Some('v') => self.process_char("v"),
-            Some('w') => self.process_char("w"),
-            Some('x') => self.process_char("x"),
-            Some('y') => self.process_char("y"),
-            Some('z') => self.process_char("z"),
-            Some('A') => self.process_char("A"),
-            Some('B') => self.process_char("B"),
-            Some('C') => self.process_char("C"),
-            Some('D') => self.process_char("D"),
-            Some('E') => self.process_char("E"),
-            Some('F') => self.process_char("F"),
-            Some('G') => self.process_char("G"),
-            Some('H') => self.process_char("H"),
-            Some('I') => self.process_char("I"),
-            Some('J') => self.process_char("J"),
-            Some('K') => self.process_char("K"),
-            Some('L') => self.process_char("L"),
-            Some('M') => self.process_char("M"),
-            Some('N') => self.process_char("N"),
-            Some('O') => self.process_char("O"),
-            Some('P') => self.process_char("P"),
-            Some('Q') => self.process_char("Q"),
-            Some('R') => self.process_char("R"),
-            Some('S') => self.process_char("S"),
-            Some('T') => self.process_char("T"),
-            Some('U') => self.process_char("U"),
-            Some('V') => self.process_char("V"),
-            Some('W') => self.process_char("W"),
-            Some('X') => self.process_char("X"),
-            Some('Y') => self.process_char("Y"),
-            Some('Z') => self.process_char("Z"),
+            Some('a') => self.process_char("a", TokenType::Letter),
+            Some('b') => self.process_char("b", TokenType::Letter),
+            Some('c') => self.process_char("c", TokenType::Letter),
+            Some('d') => self.process_char("d", TokenType::Letter),
+            Some('e') => self.process_char("e", TokenType::Letter),
+            Some('f') => self.process_char("f", TokenType::Letter),
+            Some('g') => self.process_char("g", TokenType::Letter),
+            Some('h') => self.process_char("h", TokenType::Letter),
+            Some('i') => self.process_char("i", TokenType::Letter),
+            Some('j') => self.process_char("j", TokenType::Letter),
+            Some('k') => self.process_char("k", TokenType::Letter),
+            Some('l') => self.process_char("l", TokenType::Letter),
+            Some('m') => self.process_char("m", TokenType::Letter),
+            Some('n') => self.process_char("n", TokenType::Letter),
+            Some('o') => self.process_char("o", TokenType::Letter),
+            Some('p') => self.process_char("p", TokenType::Letter),
+            Some('q') => self.process_char("q", TokenType::Letter),
+            Some('r') => self.process_char("r", TokenType::Letter),
+            Some('s') => self.process_char("s", TokenType::Letter),
+            Some('t') => self.process_char("t", TokenType::Letter),
+            Some('u') => self.process_char("u", TokenType::Letter),
+            Some('v') => self.process_char("v", TokenType::Letter),
+            Some('w') => self.process_char("w", TokenType::Letter),
+            Some('x') => self.process_char("x", TokenType::Letter),
+            Some('y') => self.process_char("y", TokenType::Letter),
+            Some('z') => self.process_char("z", TokenType::Letter),
+            Some('A') => self.process_char("A", TokenType::Letter),
+            Some('B') => self.process_char("B", TokenType::Letter),
+            Some('C') => self.process_char("C", TokenType::Letter),
+            Some('D') => self.process_char("D", TokenType::Letter),
+            Some('E') => self.process_char("E", TokenType::Letter),
+            Some('F') => self.process_char("F", TokenType::Letter),
+            Some('G') => self.process_char("G", TokenType::Letter),
+            Some('H') => self.process_char("H", TokenType::Letter),
+            Some('I') => self.process_char("I", TokenType::Letter),
+            Some('J') => self.process_char("J", TokenType::Letter),
+            Some('K') => self.process_char("K", TokenType::Letter),
+            Some('L') => self.process_char("L", TokenType::Letter),
+            Some('M') => self.process_char("M", TokenType::Letter),
+            Some('N') => self.process_char("N", TokenType::Letter),
+            Some('O') => self.process_char("O", TokenType::Letter),
+            Some('P') => self.process_char("P", TokenType::Letter),
+            Some('Q') => self.process_char("Q", TokenType::Letter),
+            Some('R') => self.process_char("R", TokenType::Letter),
+            Some('S') => self.process_char("S", TokenType::Letter),
+            Some('T') => self.process_char("T", TokenType::Letter),
+            Some('U') => self.process_char("U", TokenType::Letter),
+            Some('V') => self.process_char("V", TokenType::Letter),
+            Some('W') => self.process_char("W", TokenType::Letter),
+            Some('X') => self.process_char("X", TokenType::Letter),
+            Some('Y') => self.process_char("Y", TokenType::Letter),
+            Some('Z') => self.process_char("Z", TokenType::Letter),
             _ => None,
         }
     }
 
     fn scan_digit(&mut self) -> Option<Token> {
         match self.peek_char() {
-            Some('0') => self.process_char("0"),
-            Some('1') => self.process_char("1"),
-            Some('2') => self.process_char("2"),
-            Some('3') => self.process_char("3"),
-            Some('4') => self.process_char("4"),
-            Some('5') => self.process_char("5"),
-            Some('6') => self.process_char("6"),
-            Some('7') => self.process_char("7"),
-            Some('8') => self.process_char("8"),
-            Some('9') => self.process_char("9"),
+            Some('0') => self.process_char("0", TokenType::Digit),
+            Some('1') => self.process_char("1", TokenType::Digit),
+            Some('2') => self.process_char("2", TokenType::Digit),
+            Some('3') => self.process_char("3", TokenType::Digit),
+            Some('4') => self.process_char("4", TokenType::Digit),
+            Some('5') => self.process_char("5", TokenType::Digit),
+            Some('6') => self.process_char("6", TokenType::Digit),
+            Some('7') => self.process_char("7", TokenType::Digit),
+            Some('8') => self.process_char("8", TokenType::Digit),
+            Some('9') => self.process_char("9", TokenType::Digit),
             _ => None,
         }
     }
@@ -568,7 +568,7 @@ impl<S> Iterator for Lexer<S> where S: Iterator<Item = char> {
     }
 }
 
-/*
+
 #[cfg(test)]
 mod tests {
     use super::Lexer;
@@ -578,8 +578,7 @@ mod tests {
 
     fn ascii_armored_data() -> String {
         String::from("-----BEGIN PGP MESSAGE-----\n
-                      Version: OpenPrivacy 0.99\n
-                           \n
+                      Version: OpenPrivacy 0.99\n      \n
                       yDgBO22WxBHv7O8X7O/jygAEzol56iUKiXmV+XmpCtmpqQUKiQrFqclFqUDBovzS\n
                       vBSFjNSiVHsuAA==\n
                       =njUN\n
@@ -589,12 +588,10 @@ mod tests {
     #[test]
     fn test_armor_lexer() {
         let armored_data = ascii_armored_data();
-        let armor_lexer = Lexer::new(&armored_data);
+        let lexer = Lexer::new(armored_data.chars());
 
-        for token in armor_lexer {
-            assert!(token.valid_token());
+        for token in lexer {
             writeln!(&mut io::stderr(), "{:?}", token).unwrap();
         }
     }
 }
-*/
