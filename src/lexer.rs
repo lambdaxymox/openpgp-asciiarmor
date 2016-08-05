@@ -1,5 +1,5 @@
 // use std::str::Chars;
-// use std::iter::Iterator;
+use std::iter::Iterator;
 use std::collections::VecDeque;
 use std::iter::Peekable;
 use std::fmt;
@@ -160,7 +160,6 @@ impl<S> Lexer<S>
         }
     }
 
-    // TODO: Implement next_token.
     pub fn next_token(&mut self) -> Token {
         match self.peek_char() {
             Some('-') => {
@@ -556,34 +555,46 @@ impl<S> Lexer<S>
     }
 }
 
+impl<S> Iterator for Lexer<S> where S: Iterator<Item = char> {
+    type Item = Token;
 
-// #[cfg(test)]
-// mod tests {
-// use super::ArmorLexer;
-// use std::io;
-// use std::io::Write;
-//
-//
-// fn ascii_armored_data() -> String {
-// String::from(
-// "-----BEGIN PGP MESSAGE-----\n\
-// Version: OpenPrivacy 0.99\n\
-// \n\
-// yDgBO22WxBHv7O8X7O/jygAEzol56iUKiXmV+XmpCtmpqQUKiQrFqclFqUDBovzS\n\
-// vBSFjNSiVHsuAA==\n\
-// =njUN\n\
-// -----END PGP MESSAGE-----")
-// }
-//
-// #[test]
-// fn test_armor_lexer() {
-// let armored_data = ascii_armored_data();
-// let armor_lexer = ArmorLexer::new(&armored_data);
-//
-// for token in armor_lexer {
-// assert!(token.valid_token());
-// writeln!(&mut io::stderr(), "{:?}", token).unwrap();
-// }
-// }
-// }
-//
+    fn next(&mut self) -> Option<Token> {
+        let next_token = self.next_token();
+        if next_token.has_token_type(TokenType::Eof) {
+            None
+        } else {
+            Some(next_token)
+        }
+    }
+}
+
+/*
+#[cfg(test)]
+mod tests {
+    use super::Lexer;
+    use std::io;
+    use std::io::Write;
+
+
+    fn ascii_armored_data() -> String {
+        String::from("-----BEGIN PGP MESSAGE-----\n
+                      Version: OpenPrivacy 0.99\n
+                           \n
+                      yDgBO22WxBHv7O8X7O/jygAEzol56iUKiXmV+XmpCtmpqQUKiQrFqclFqUDBovzS\n
+                      vBSFjNSiVHsuAA==\n
+                      =njUN\n
+                      -----END PGP MESSAGE-----")
+    }
+
+    #[test]
+    fn test_armor_lexer() {
+        let armored_data = ascii_armored_data();
+        let armor_lexer = Lexer::new(&armored_data);
+
+        for token in armor_lexer {
+            assert!(token.valid_token());
+            writeln!(&mut io::stderr(), "{:?}", token).unwrap();
+        }
+    }
+}
+*/
