@@ -222,7 +222,7 @@ impl<S> Lexer<S>
             None    => self.scan_eof().unwrap(),
         }
     }
-    
+
     fn peek_char(&mut self) -> Option<char> {
         if self.lookahead.is_empty() {
             self.offset = 0;
@@ -247,10 +247,6 @@ impl<S> Lexer<S>
             }
             None => None,
         }
-    }
-
-    fn consume_ntimes(&mut self, amount: usize) {
-        self.location.increment(amount);
     }
 
     fn consume(&mut self) {
