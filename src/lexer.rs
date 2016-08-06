@@ -140,7 +140,9 @@ pub struct Lexer<S>
     where S: Iterator<Item = char>
 {
     input: Peekable<S>,
+    lookahead: VecDeque<char>,
     location: Location,
+    offset: usize
 }
 
 impl<S> Lexer<S>
@@ -151,7 +153,9 @@ impl<S> Lexer<S>
 
         Lexer {
             input: input.peekable(),
+            lookahead: VecDeque::with_capacity(20),
             location: start,
+            offset: 0
         }
     }
 
@@ -184,9 +188,7 @@ impl<S> Lexer<S>
 
     pub fn next_token(&mut self) -> Token {
         match self.peek_char() {
-            Some('-') => {
-                self.scan_or_else(Lexer::scan_five_dashes, Lexer::scan_other_utf8)
-            }
+            Some('-') => self.scan_or_else(Lexer::scan_five_dashes, Lexer::scan_other_utf8),
             Some('=') => self.scan_pad_symbol().unwrap(),
             Some('/') => self.scan_forwardslash().unwrap(),
             Some(':') => self.scan_or_else(Lexer::scan_colon_space, Lexer::scan_colon),
@@ -220,11 +222,23 @@ impl<S> Lexer<S>
             None    => self.scan_eof().unwrap(),
         }
     }
-
+    
     fn peek_char(&mut self) -> Option<char> {
-        self.input.peek().map(|c| *c)
+        if self.lookahead.is_empty() {
+            self.offset = 0;
+            let next_ch = self.input.peek().map(|ch| *ch);
+            if next_ch.is_some() {
+                self.lookahead.push_back(next_ch.unwrap());
+                Some(next_ch.unwrap())
+            } else {
+                None
+            }
+        } else {
+            Some(self.lookahead[self.offset])
+        }
     }
 
+    // TODO: append to buffer, update offset, and then consume input char.
     fn read_char(&mut self) -> Option<char> {
         match self.input.next() {
             Some(c) => {
@@ -243,6 +257,7 @@ impl<S> Lexer<S>
         self.location.increment(1);
     }
 
+    // TODO: Reset offset into buffer.
     fn backtrack_ntimes(&mut self, amount: usize) {
         self.location.decrement(amount);
     }
