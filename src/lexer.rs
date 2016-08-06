@@ -2,7 +2,8 @@ use std::iter::Iterator;
 use std::collections::VecDeque;
 use std::iter::Peekable;
 use std::fmt;
-
+use std::io;
+use std::io::{Write};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum TokenType {
@@ -74,6 +75,7 @@ fn string_to_token_type(token_string: &str) -> Option<TokenType> {
         " " => Some(TokenType::WhiteSpace),
         ": " => Some(TokenType::ColonSpace),
         "\n" => Some(TokenType::NewLine),
+        "\r" => Some(TokenType::NewLine),
         "-----" => Some(TokenType::FiveDashes),
         "BEGIN " => Some(TokenType::Begin),
         "END " => Some(TokenType::End),
@@ -153,120 +155,77 @@ impl<S> Lexer<S>
         }
     }
 
+    fn scan_one_of<F>(&mut self, choices: &[F], default: F) -> Token
+        where F: Fn(&mut Lexer<S>) -> Option<Token>
+    {
+        for choice in choices {
+            match choice(self) {
+                Some(token) => {
+                    return token;
+                }
+                None => continue
+            }
+        }
+
+        default(self).unwrap()
+    }
+
+    fn scan_or_else<F, G>(&mut self, scanner: F, default: G) -> Token
+        where F: Fn(&mut Lexer<S>) -> Option<Token>,
+              G: Fn(&mut Lexer<S>) -> Option<Token>
+    {
+        match scanner(self) {
+            Some(token) => {
+                return token;
+            }
+            None => default(self).unwrap()
+        }
+    }
+
     pub fn next_token(&mut self) -> Token {
         match self.peek_char() {
             Some('-') => {
-                let result = self.scan_five_dashes();
-                if result.is_some() {
-                    result.unwrap()
-                } else {
-                    self.scan_other_utf8().unwrap()
-                }
+                self.scan_or_else(Lexer::scan_five_dashes, Lexer::scan_other_utf8)
             }
             Some('=') => self.scan_pad_symbol().unwrap(),
             Some('/') => self.scan_forwardslash().unwrap(),
             Some(':') => {
-                let result = self.scan_colon_space();
-                if result.is_some() {
-                    result.unwrap()
-                } else {
-                    self.scan_colon().unwrap()
-                }
+                self.scan_or_else(Lexer::scan_colon_space, Lexer::scan_colon)
             }
             Some('+') => self.scan_plus_sign().unwrap(),
             Some(',') => self.scan_comma().unwrap(),
             Some(' ') => self.scan_whitespace_symbol().unwrap(),
             Some('B') => {
-                let result = self.scan_begin();
-                if result.is_some() {
-                    result.unwrap()
-                } else {
-                    self.scan_letter().unwrap()
-                }
+                self.scan_or_else(Lexer::scan_begin, Lexer::scan_letter)
             }
             Some('E') => {
-                let result = self.scan_end();
-                if result.is_some() {
-                    result.unwrap()
-                } else {
-                    self.scan_letter().unwrap()
-                }
+                self.scan_or_else(Lexer::scan_end, Lexer::scan_letter)
             }
             Some('V') => {
-                let result = self.scan_version();
-                if result.is_some() {
-                    result.unwrap()
-                } else {
-                    self.scan_letter().unwrap()
-                }
+                self.scan_or_else(Lexer::scan_version, Lexer::scan_letter)
             }
             Some('C') => {
-                let result = self.scan_comment();
-                if result.is_some() {
-                    return result.unwrap();
-                }
-                let result = self.scan_charset();
-                if result.is_some() {
-                    return result.unwrap();
-                } else {
-                    self.scan_letter().unwrap()
-                }
+                self.scan_one_of([Lexer::scan_comment,
+                                  Lexer::scan_charset].as_ref(),
+                                  Lexer::scan_letter)
             }
             Some('H') => {
-                let result = self.scan_hash();
-                if result.is_some() {
-                    result.unwrap()
-                } else {
-                    self.scan_letter().unwrap()
-                }
+                self.scan_or_else(Lexer::scan_hash, Lexer::scan_letter)
             }
             Some('P') => {
-                let result = self.scan_pgp_message();
-                if result.is_some() {
-                    return result.unwrap();
-                }
-                let result = self.scan_pgp_public_key_block();
-                if result.is_some() {
-                    return result.unwrap();
-                }
-                let result = self.scan_pgp_private_key_block();
-                if result.is_some() {
-                    return result.unwrap();
-                }
-                let result = self.scan_pgp_message_part();
-                if result.is_some() {
-                    return result.unwrap();
-                }
-                let result = self.scan_pgp_message_part();
-                if result.is_some() {
-                    return result.unwrap();
-                }
-                let result = self.scan_pgp_signature();
-                if result.is_some() {
-                    return result.unwrap();
-                }
-                let result = self.scan_letter();
-                if result.is_some() {
-                    return result.unwrap();
-                } else {
-                    unreachable!();
-                }
+                self.scan_one_of([Lexer::scan_pgp_message_part,
+                                  Lexer::scan_pgp_public_key_block,
+                                  Lexer::scan_pgp_private_key_block,
+                                  Lexer::scan_pgp_message,
+                                  Lexer::scan_pgp_signature,
+                                  ].as_ref(),
+                                  Lexer::scan_letter)
             }
             Some('M') => {
-                let result = self.scan_messageid();
-                if result.is_some() {
-                    result.unwrap()
-                } else {
-                    self.scan_letter().unwrap()
-                }
+                self.scan_or_else(Lexer::scan_messageid, Lexer::scan_letter)
             }
             Some('\n') => {
-                let result = self.scan_blankline();
-                if result.is_some() {
-                    result.unwrap()
-                } else {
-                    self.scan_newline().unwrap()
-                }
+                self.scan_or_else(Lexer::scan_blankline, Lexer::scan_newline)
             }
             Some('0'...'9') => self.scan_digit().unwrap(),
             Some('a'...'z') => self.scan_letter().unwrap(),
@@ -275,7 +234,6 @@ impl<S> Lexer<S>
             None    => self.scan_eof().unwrap(),
         }
     }
-
 
     fn peek_char(&mut self) -> Option<char> {
         self.input.peek().map(|c| *c)
