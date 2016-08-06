@@ -189,29 +189,19 @@ impl<S> Lexer<S>
             }
             Some('=') => self.scan_pad_symbol().unwrap(),
             Some('/') => self.scan_forwardslash().unwrap(),
-            Some(':') => {
-                self.scan_or_else(Lexer::scan_colon_space, Lexer::scan_colon)
-            }
+            Some(':') => self.scan_or_else(Lexer::scan_colon_space, Lexer::scan_colon),
             Some('+') => self.scan_plus_sign().unwrap(),
             Some(',') => self.scan_comma().unwrap(),
             Some(' ') => self.scan_whitespace_symbol().unwrap(),
-            Some('B') => {
-                self.scan_or_else(Lexer::scan_begin, Lexer::scan_letter)
-            }
-            Some('E') => {
-                self.scan_or_else(Lexer::scan_end, Lexer::scan_letter)
-            }
-            Some('V') => {
-                self.scan_or_else(Lexer::scan_version, Lexer::scan_letter)
-            }
+            Some('B') => self.scan_or_else(Lexer::scan_begin, Lexer::scan_letter),
+            Some('E') => self.scan_or_else(Lexer::scan_end, Lexer::scan_letter),
+            Some('V') => self.scan_or_else(Lexer::scan_version, Lexer::scan_letter),
             Some('C') => {
                 self.scan_one_of([Lexer::scan_comment,
                                   Lexer::scan_charset].as_ref(),
                                   Lexer::scan_letter)
             }
-            Some('H') => {
-                self.scan_or_else(Lexer::scan_hash, Lexer::scan_letter)
-            }
+            Some('H') => self.scan_or_else(Lexer::scan_hash, Lexer::scan_letter),
             Some('P') => {
                 self.scan_one_of([Lexer::scan_pgp_message_part,
                                   Lexer::scan_pgp_public_key_block,
@@ -221,12 +211,8 @@ impl<S> Lexer<S>
                                   ].as_ref(),
                                   Lexer::scan_letter)
             }
-            Some('M') => {
-                self.scan_or_else(Lexer::scan_messageid, Lexer::scan_letter)
-            }
-            Some('\n') => {
-                self.scan_or_else(Lexer::scan_blankline, Lexer::scan_newline)
-            }
+            Some('M')  => self.scan_or_else(Lexer::scan_messageid, Lexer::scan_letter),
+            Some('\n') => self.scan_or_else(Lexer::scan_blankline, Lexer::scan_newline),
             Some('0'...'9') => self.scan_digit().unwrap(),
             Some('a'...'z') => self.scan_letter().unwrap(),
             Some('A'...'Z') => self.scan_letter().unwrap(),
