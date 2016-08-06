@@ -153,7 +153,7 @@ impl<S> Lexer<S>
 
         Lexer {
             input: input.peekable(),
-            lookahead: VecDeque::with_capacity(20),
+            lookahead: VecDeque::with_capacity(30),
             location: start,
             offset: 0
         }
@@ -226,40 +226,64 @@ impl<S> Lexer<S>
     fn peek_char(&mut self) -> Option<char> {
         if self.lookahead.is_empty() {
             self.offset = 0;
-            let next_ch = self.input.peek().map(|ch| *ch);
+            let next_ch = self.input.next();
             if next_ch.is_some() {
+                self.location.increment(1);
                 self.lookahead.push_back(next_ch.unwrap());
                 Some(next_ch.unwrap())
             } else {
                 None
             }
         } else {
+            self.sync();
             Some(self.lookahead[self.offset])
         }
     }
 
-    // TODO: append to buffer, update offset, and then consume input char.
-    fn read_char(&mut self) -> Option<char> {
-        match self.input.next() {
-            Some(c) => {
-                self.consume();
-                Some(c)
+    fn sync(&mut self) {
+        if self.offset > self.lookahead.len()-1 {
+            let n = self.offset - (self.lookahead.len()-1);
+            self.fill(n);
+        }
+    }
+
+    fn fill(&mut self, amount: usize) {
+        for _ in 0..amount {
+            match self.input.next() {
+                Some(ch) => {
+                    self.lookahead.push_back(ch);
+                }
+                None => {
+                    break;
+                }
             }
-            None => None,
+        }
+    }
+
+    fn read_char(&mut self) -> Option<char> {
+        match self.peek_char() {
+            Some(ch) => {
+                self.offset += 1;
+                Some(ch)
+            }
+            None => None
         }
     }
 
     fn consume(&mut self) {
-        self.location.increment(1);
+        for _ in 0..self.offset {
+            self.lookahead.pop_front();
+        }
+        self.location.increment(self.offset-1);
+        self.offset = 0;
     }
 
-    // TODO: Reset offset into buffer.
-    fn backtrack_ntimes(&mut self, amount: usize) {
-        self.location.decrement(amount);
-    }
-
-    fn backtrack(&mut self) {
-        self.location.decrement(1);
+    fn backtrack(&mut self, amount: usize) {
+        if amount > self.offset {
+            self.offset = 0;
+        } else {
+            self.offset -= amount;
+        }
     }
 
     fn match_terminal_symbol(&mut self, token_string: &str) -> Option<Token> {
@@ -273,7 +297,7 @@ impl<S> Lexer<S>
                         self.read_char();
                         result.push(other_ch);
                     } else {
-                        self.backtrack_ntimes(result.len());
+                        self.backtrack(result.len());
                         return None;
                     }
                 }
@@ -281,6 +305,7 @@ impl<S> Lexer<S>
             }
         }
 
+        self.consume();
         let token_type = string_to_token_type(token_string).unwrap();
 
         Some(Token::new(token_type, token_string, location))
@@ -486,7 +511,7 @@ impl<S> Lexer<S>
                     break;
                 }
                 _ => {
-                    self.backtrack_ntimes(result.len());
+                    self.backtrack(result.len());
                     return None;
                 }
             }
@@ -515,6 +540,8 @@ impl<S> Iterator for Lexer<S> where S: Iterator<Item = char> {
     type Item = Token;
 
     fn next(&mut self) -> Option<Token> {
+        writeln!(&mut io::stderr(), "{:?}", self.lookahead);
+        writeln!(&mut io::stderr(), "{:?}", self.offset);
         let next_token = self.next_token();
         if next_token.has_token_type(TokenType::Eof) {
             None
@@ -523,7 +550,6 @@ impl<S> Iterator for Lexer<S> where S: Iterator<Item = char> {
         }
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -544,9 +570,9 @@ mod tests {
     #[test]
     fn test_armor_lexer() {
         let armored_data = ascii_armored_data();
-        let lexer = Lexer::new(armored_data.chars());
+        let mut lexer = Lexer::new(armored_data.chars());
 
-        for token in lexer {
+        for token in &mut lexer {
             writeln!(&mut io::stderr(), "{:?}", token).unwrap();
         }
     }
