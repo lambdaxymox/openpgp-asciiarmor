@@ -15,7 +15,7 @@ pub enum TokenType {
     Letter,
     PlusSign,
     WhiteSpace,
-    OtherUTF8,
+    OtherUtf8,
     ColonSpace,
     NewLine,
     FiveDashes,
@@ -128,6 +128,17 @@ impl Token {
             token_type: token_type,
             text: String::from(text),
             location: location,
+        }
+    }
+
+    fn from_char(token_type: TokenType, ch: char, location: Location) -> Token {
+        let mut text = String::new();
+        text.push(ch);
+
+        Token {
+            token_type: token_type,
+            text: text,
+            location: location
         }
     }
 
@@ -278,6 +289,18 @@ impl<S> Lexer<S>
         self.offset = 0;
     }
 
+    fn consume_char(&mut self) {
+        if self.lookahead.is_empty() {
+            self.offset = 0;
+        } else {
+            self.lookahead.pop_front();
+            self.location.increment(1);
+            if self.offset > 0 {
+                self.offset -= 1;
+            }
+        }
+    }
+
     fn backtrack(&mut self, amount: usize) {
         if amount > self.offset {
             self.offset = 0;
@@ -401,12 +424,17 @@ impl<S> Lexer<S>
     }
 
     fn scan_other_utf8(&mut self) -> Option<Token> {
-        self.scan_symbol(TokenType::OtherUTF8)
+        let location = self.location;
+        let result = self.read_char()
+                         .map(|ch| Token::from_char(TokenType::OtherUtf8, ch, location));
+        self.consume_char();
+
+        result
     }
 
     fn process_char(&mut self, ch: &str, token_type: TokenType) -> Option<Token> {
         let result = Some(Token::new(token_type, ch, self.location));
-        self.read_char();
+        self.consume_char();
 
         result
     }
@@ -540,8 +568,6 @@ impl<S> Iterator for Lexer<S> where S: Iterator<Item = char> {
     type Item = Token;
 
     fn next(&mut self) -> Option<Token> {
-        writeln!(&mut io::stderr(), "{:?}", self.lookahead);
-        writeln!(&mut io::stderr(), "{:?}", self.offset);
         let next_token = self.next_token();
         if next_token.has_token_type(TokenType::Eof) {
             None
@@ -559,11 +585,11 @@ mod tests {
 
 
     fn ascii_armored_data() -> String {
-        String::from("-----BEGIN PGP MESSAGE-----\n
-                      Version: OpenPrivacy 0.99\n      \n
-                      yDgBO22WxBHv7O8X7O/jygAEzol56iUKiXmV+XmpCtmpqQUKiQrFqclFqUDBovzS\n
-                      vBSFjNSiVHsuAA==\n
-                      =njUN\n
+        String::from("-----BEGIN PGP MESSAGE-----\n\
+                      Version: OpenPrivacy 0.99\n      \n\
+                      yDgBO22WxBHv7O8X7O/jygAEzol56iUKiXmV+XmpCtmpqQUKiQrFqclFqUDBovzS\n\
+                      vBSFjNSiVHsuAA==\n\
+                      =njUN\n\
                       -----END PGP MESSAGE-----")
     }
 
