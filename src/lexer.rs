@@ -239,7 +239,7 @@ impl<S> Lexer<S>
             self.offset = 0;
             let next_ch = self.input.next();
             if next_ch.is_some() {
-                self.location.increment(1);
+                //self.location.increment(1);
                 self.lookahead.push_back(next_ch.unwrap());
                 Some(next_ch.unwrap())
             } else {
@@ -281,17 +281,21 @@ impl<S> Lexer<S>
         }
     }
 
+    fn reset_offset(&mut self) {
+        self.offset = 0;
+    }
+
     fn consume(&mut self) {
         for _ in 0..self.offset {
             self.lookahead.pop_front();
         }
-        self.location.increment(self.offset-1);
-        self.offset = 0;
+        self.location.increment(self.offset);
+        self.reset_offset();
     }
 
     fn consume_char(&mut self) {
         if self.lookahead.is_empty() {
-            self.offset = 0;
+            self.reset_offset();
         } else {
             self.lookahead.pop_front();
             self.location.increment(1);
@@ -303,7 +307,7 @@ impl<S> Lexer<S>
 
     fn backtrack(&mut self, amount: usize) {
         if amount > self.offset {
-            self.offset = 0;
+            self.reset_offset();
         } else {
             self.offset -= amount;
         }
@@ -548,6 +552,7 @@ impl<S> Lexer<S>
         if result.is_empty() {
             None
         } else {
+            self.consume();
             Some(Token::new(TokenType::BlankLine, result.as_str(), location))
         }
     }
