@@ -2,8 +2,7 @@ use std::iter::Iterator;
 use std::collections::VecDeque;
 use std::iter::Peekable;
 use std::fmt;
-use std::io;
-use std::io::{Write};
+
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum TokenType {
