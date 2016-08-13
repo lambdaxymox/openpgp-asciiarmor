@@ -444,9 +444,7 @@ impl<S> Iterator for Lexer<S> where S: Iterator<Item = char> {
 #[cfg(test)]
 mod tests {
     use super::Lexer;
-    use std::io;
-    use std::io::Write;
-
+    
 
     fn ascii_armored_data() -> String {
         String::from("-----BEGIN PGP MESSAGE-----\n\
@@ -463,7 +461,6 @@ mod tests {
         let mut lexer = Lexer::new(armored_data.chars());
 
         for token in &mut lexer {
-            writeln!(&mut io::stderr(), "{}", token).unwrap();
             assert!(token.is_valid_token());
         }
     }
