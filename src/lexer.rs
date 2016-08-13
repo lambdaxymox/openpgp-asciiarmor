@@ -1,150 +1,9 @@
 use std::iter::Iterator;
 use std::collections::VecDeque;
 use std::iter::Peekable;
-use std::fmt;
+use token::{Token, TokenType, Location};
+use token;
 
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub enum TokenType {
-    Pad,
-    ForwardSlash,
-    Colon,
-    Comma,
-    Digit,
-    Letter,
-    PlusSign,
-    WhiteSpace,
-    OtherUtf8,
-    ColonSpace,
-    NewLine,
-    FiveDashes,
-    Begin,
-    End,
-    Version,
-    Comment,
-    MessageID,
-    Hash,
-    Charset,
-    BlankLine,
-    PGPMessage,
-    PGPPublicKeyBlock,
-    PGPPrivateKeyBlock,
-    PGPMessagePart,
-    PGPSignature,
-    Eof,
-}
-
-impl TokenType {
-    fn armor_string(self) -> Option<&'static str> {
-        match self {
-            TokenType::Pad => Some("="),
-            TokenType::ForwardSlash => Some("/"),
-            TokenType::Colon => Some(":"),
-            TokenType::Comma => Some(","),
-            TokenType::PlusSign => Some("+"),
-            TokenType::WhiteSpace => Some(" "),
-            TokenType::ColonSpace => Some(": "),
-            TokenType::NewLine => Some("\n"),
-            TokenType::FiveDashes => Some("-----"),
-            TokenType::Begin => Some("BEGIN "),
-            TokenType::End => Some("END "),
-            TokenType::Version => Some("Version"),
-            TokenType::Comment => Some("Comment"),
-            TokenType::MessageID => Some("MessageID"),
-            TokenType::Hash => Some("Hash"),
-            TokenType::Charset => Some("Charset"),
-            TokenType::Eof => Some("EOF"),
-            TokenType::PGPMessage => Some("PGP MESSAGE"),
-            TokenType::PGPPublicKeyBlock => Some("PGP PUBLIC KEY BLOCK"),
-            TokenType::PGPPrivateKeyBlock => Some("PGP PRIVATE KEY BLOCK"),
-            TokenType::PGPMessagePart => Some("PGP MESSAGE, PART "),
-            TokenType::PGPSignature => Some("PGP SIGNATURE"),
-            _ => None,
-        }
-    }
-}
-
-fn string_to_token_type(token_string: &str) -> Option<TokenType> {
-    match token_string {
-        "=" => Some(TokenType::Pad),
-        "/" => Some(TokenType::ForwardSlash),
-        ":" => Some(TokenType::Colon),
-        "," => Some(TokenType::Comma),
-        "+" => Some(TokenType::PlusSign),
-        " " => Some(TokenType::WhiteSpace),
-        ": " => Some(TokenType::ColonSpace),
-        "\n" => Some(TokenType::NewLine),
-        "\r" => Some(TokenType::NewLine),
-        "-----" => Some(TokenType::FiveDashes),
-        "BEGIN " => Some(TokenType::Begin),
-        "END " => Some(TokenType::End),
-        "Version" => Some(TokenType::Version),
-        "Comment" => Some(TokenType::Comment),
-        "MessageID" => Some(TokenType::MessageID),
-        "Hash" => Some(TokenType::Hash),
-        "Charset" => Some(TokenType::Charset),
-        "EOF" => Some(TokenType::Eof),
-        "PGP MESSAGE" => Some(TokenType::PGPMessage),
-        "PGP PUBLIC KEY BLOCK" => Some(TokenType::PGPPublicKeyBlock),
-        "PGP PRIVATE KEY BLOCK" => Some(TokenType::PGPPrivateKeyBlock),
-        "PGP MESSAGE, PART " => Some(TokenType::PGPMessagePart),
-        "PGP SIGNATURE" => Some(TokenType::PGPSignature),
-        _ => None,
-    }
-}
-
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
-pub struct Location {
-    pub absolute: isize,
-}
-
-impl Location {
-    pub fn eof() -> Location {
-        Location { absolute: -1 }
-    }
-
-    #[inline]
-    pub fn increment(&mut self, amount: usize) {
-        self.absolute += amount as isize;
-    }
-
-    #[inline]
-    pub fn decrement(&mut self, amount: usize) {
-        self.absolute -= amount as isize;
-    }
-}
-
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub struct Token {
-    token_type: TokenType,
-    text: String,
-    location: Location,
-}
-
-impl Token {
-    fn new(token_type: TokenType, text: &str, location: Location) -> Token {
-        Token {
-            token_type: token_type,
-            text: String::from(text),
-            location: location,
-        }
-    }
-
-    fn from_char(token_type: TokenType, ch: char, location: Location) -> Token {
-        let mut text = String::new();
-        text.push(ch);
-
-        Token {
-            token_type: token_type,
-            text: text,
-            location: location
-        }
-    }
-
-    fn has_token_type(&self, token_type: TokenType) -> bool {
-        self.token_type == token_type
-    }
-}
 
 pub struct Lexer<S>
     where S: Iterator<Item = char>
@@ -332,7 +191,7 @@ impl<S> Lexer<S>
         }
 
         self.consume();
-        let token_type = string_to_token_type(token_string).unwrap();
+        let token_type = token::string_to_token_type(token_string).unwrap();
 
         Some(Token::new(token_type, token_string, location))
     }
@@ -581,6 +440,7 @@ impl<S> Iterator for Lexer<S> where S: Iterator<Item = char> {
     }
 }
 
+
 #[cfg(test)]
 mod tests {
     use super::Lexer;
@@ -604,6 +464,7 @@ mod tests {
 
         for token in &mut lexer {
             writeln!(&mut io::stderr(), "{:?}", token).unwrap();
+            assert!(token.is_valid_token());
         }
     }
 }
