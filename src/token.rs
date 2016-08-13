@@ -152,6 +152,14 @@ impl Token {
         self.token_type == token_type
     }
 
+    pub fn token_type(&self) -> TokenType {
+        self.token_type
+    }
+
+    pub fn as_str(&self) -> &str {
+        self.text.as_str()
+    }
+
     fn is_pad(&self) -> bool {
         (self.token_type == TokenType::Pad) && (self.text == "=")
     }
