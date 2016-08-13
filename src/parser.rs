@@ -284,12 +284,12 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
         }
     }
 
-    fn parse_header_line(&mut self) -> ParseResult<MessageType> {
+    fn __parse_header_tail_line(&mut self, tt: TokenType) -> ParseResult<MessageType> {
         match self.read_or_else(TokenType::FiveDashes, ParseError::CorruptHeader) {
             Ok(_)  => {}
             Err(e) => return Err(e)
         }
-        match self.read_or_else(TokenType::Begin, ParseError::CorruptHeader) {
+        match self.read_or_else(tt, ParseError::CorruptHeader) {
             Ok(_) => {}
             Err(e) => return Err(e)
         }
@@ -320,6 +320,14 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
 
         self.consume();
         Ok(message_type.unwrap())
+    }
+
+    fn parse_header_line(&mut self) -> ParseResult<MessageType> {
+        self.__parse_header_tail_line(TokenType::Begin)
+    }
+
+    fn parse_tail_line(&mut self) -> ParseResult<MessageType> {
+        self.__parse_header_tail_line(TokenType::End)
     }
 }
 
