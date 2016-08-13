@@ -318,6 +318,7 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
             Err(e) => return Err(e)
         }
 
+        self.consume();
         Ok(message_type.unwrap())
     }
 }
