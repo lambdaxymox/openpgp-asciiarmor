@@ -8,10 +8,10 @@ use token;
 pub struct Lexer<S>
     where S: Iterator<Item = char>
 {
-    input: Peekable<S>,
-    lookahead: VecDeque<char>,
-    location: Location,
-    offset: usize
+    input:         Peekable<S>,
+    lookahead:     VecDeque<char>,
+    location:      Location,
+    offset:        usize
 }
 
 impl<S> Lexer<S>
@@ -21,10 +21,10 @@ impl<S> Lexer<S>
         let start = Location { absolute: 0 };
 
         Lexer {
-            input: input.peekable(),
-            lookahead: VecDeque::with_capacity(30),
-            location: start,
-            offset: 0
+            input:         input.peekable(),
+            lookahead:     VecDeque::with_capacity(30),
+            location:      start,
+            offset:        0
         }
     }
 
@@ -444,7 +444,7 @@ impl<S> Iterator for Lexer<S> where S: Iterator<Item = char> {
 #[cfg(test)]
 mod tests {
     use super::Lexer;
-    
+
 
     fn ascii_armored_data() -> String {
         String::from("-----BEGIN PGP MESSAGE-----\n\
