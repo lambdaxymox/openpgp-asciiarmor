@@ -463,7 +463,7 @@ mod tests {
         let mut lexer = Lexer::new(armored_data.chars());
 
         for token in &mut lexer {
-            writeln!(&mut io::stderr(), "{:?}", token).unwrap();
+            writeln!(&mut io::stderr(), "{}", token).unwrap();
             assert!(token.is_valid_token());
         }
     }
