@@ -4,7 +4,8 @@ use lexer::Lexer;
 use token::{Token, TokenType};
 use base64::Base64;
 use crc24;
-
+use std::io;
+use std::io::Write;
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 enum MessageType {
@@ -37,17 +38,19 @@ fn token_type_to_header_type(token_type: TokenType) -> HeaderType {
     }
 }
 
+#[derive(Clone, PartialEq, Eq, Debug)]
 struct Header {
     header_type: MessageType,
     header_block: Vec<(HeaderType, String)>
 }
 
+#[derive(Clone, PartialEq, Eq, Debug)]
 struct Body {
     body: Base64,
     checksum: crc24::Crc24
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
 enum ParseError {
     CorruptHeader,
     InvalidHeaderLine,
@@ -188,7 +191,7 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
         }
     }
 
-    fn read_or_else(&mut self, tt: TokenType, err: ParseError) -> ParseResult<Token> {
+    fn read_token_or_else(&mut self, tt: TokenType, err: ParseError) -> ParseResult<Token> {
         match self.peek_token() {
             Some(token) => {
                 if !token.has_token_type(tt) {
@@ -238,17 +241,19 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
                     TokenType::PGPMessagePart => {
                         match self.parse_x_div_y() {
                             Ok((x,y)) => {
-                                self.consume();
+                                self.consume(); // Do I want to consume here?
                                 return Ok(MessageType::PGPMessagePartXofY(x,y))
                             }
                             Err(_)    => {}
                         }
                         match self.parse_number() {
                             Ok(x)  => {
-                                self.consume();
+                                self.consume(); // Do I want to consume here?
                                 return Ok(MessageType::PGPMessagePartX(x))
                             }
-                            Err(_) => Err(ParseError::CorruptHeader)
+                            Err(_) => {
+                                Err(ParseError::CorruptHeader)
+                            }
                         }
                     }
                     _ => return Err(ParseError::CorruptHeader)
@@ -263,7 +268,7 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
             Some(token) => {
                 match token.token_type() {
                     TokenType::PGPMessage => {
-                        self.consume();
+                        self.read_token();
                         Ok(MessageType::PGPMessage)
                     }
                     _ => Err(ParseError::CorruptHeader)
@@ -318,12 +323,13 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
         }
     }
 
-    fn parse_header_tail_line(&mut self, tt: TokenType) -> ParseResult<MessageType> {
-        match self.read_or_else(TokenType::FiveDashes, ParseError::CorruptHeader) {
+    fn parse_header_tail_line(&mut self, token_type: TokenType) -> ParseResult<MessageType> {
+        match self.read_token_or_else(TokenType::FiveDashes, ParseError::CorruptHeader) {
             Ok(_)  => {}
             Err(e) => return Err(e)
         }
-        match self.read_or_else(tt, ParseError::CorruptHeader) {
+
+        match self.read_token_or_else(token_type, ParseError::CorruptHeader) {
             Ok(_) => {}
             Err(e) => return Err(e)
         }
@@ -347,7 +353,7 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
             Err(e) => return Err(e)
         }
 
-        match self.read_or_else(TokenType::FiveDashes, ParseError::CorruptHeader) {
+        match self.read_token_or_else(TokenType::FiveDashes, ParseError::CorruptHeader) {
             Ok(_)  => {}
             Err(e) => return Err(e)
         }
@@ -535,5 +541,31 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
 
 #[cfg(test)]
 mod tests {
+    use lexer::Lexer;
+    use super::Parser;
+    use super::MessageType;
+    use std::io;
+    use std::io::Write;
+
+
+    #[test]
+    fn test_parse_header_line() {
+        let string = String::from("-----BEGIN PGP MESSAGE-----\n");
+        let lexer  = Lexer::new(string.chars());
+        let mut parser = Parser::new(lexer);
+        let result = parser.parse_header_line();
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), MessageType::PGPMessage);
+    }
+
+    #[test]
+    fn test_parse_tail_line() {
+        let string = String::from("-----END PGP MESSAGE-----\n");
+        let lexer  = Lexer::new(string.chars());
+        let mut parser = Parser::new(lexer);
+        let result = parser.parse_tail_line();
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), MessageType::PGPMessage);
+    }
 
 }
