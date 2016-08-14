@@ -1,7 +1,3 @@
-use std::io;
-use std::io::Write;
-
-
 pub type Octet = u32;
 // Mask for keeping octets as 3 bytes.
 const OCTET_MASK: u32 = 0x00FF_FFFF;

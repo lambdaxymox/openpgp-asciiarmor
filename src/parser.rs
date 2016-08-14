@@ -4,7 +4,6 @@ use lexer::Lexer;
 use token::{Token, TokenType};
 use base64::Base64;
 use crc24;
-use ascii_armor;
 
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -80,7 +79,7 @@ pub struct Parser<S> where S: Iterator<Item=char> {
 }
 
 impl<S> Parser<S> where S: Iterator<Item=char> {
-    pub fn new(mut input: Lexer<S>) -> Parser<S> {
+    pub fn new(input: Lexer<S>) -> Parser<S> {
         Parser {
             input:     input.peekable(),
             lookahead: VecDeque::with_capacity(20),
@@ -249,7 +248,7 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
                                 self.consume();
                                 return Ok(MessageType::PGPMessagePartX(x))
                             }
-                            Err(e) => Err(ParseError::CorruptHeader)
+                            Err(_) => Err(ParseError::CorruptHeader)
                         }
                     }
                     _ => return Err(ParseError::CorruptHeader)
@@ -450,7 +449,7 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
             }
         }
         let header_text = match self.peek_token() {
-            Some(token) => {
+            Some(_) => {
                 self.parse_header_text()
             }
             None => {
