@@ -517,6 +517,10 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
 
         Ok(header)
     }
+
+    fn parse_tail(&mut self) -> ParseResult<MessageType> {
+        self.parse_tail_line()
+    }
 }
 
 
