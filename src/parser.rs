@@ -2,6 +2,9 @@ use std::collections::VecDeque;
 use std::iter::Peekable;
 use lexer::Lexer;
 use token::{Token, TokenType};
+use base64::Base64;
+use crc24;
+use ascii_armor;
 
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -38,6 +41,11 @@ fn token_type_to_header_type(token_type: TokenType) -> HeaderType {
 struct Header {
     header_type: MessageType,
     header_block: Vec<(HeaderType, String)>
+}
+
+struct Body {
+    body: Base64,
+    checksum: crc24::Crc24
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -515,12 +523,14 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
             header_block: header_block.unwrap()
         };
 
+        self.consume();
         Ok(header)
     }
 
     fn parse_tail(&mut self) -> ParseResult<MessageType> {
         self.parse_tail_line()
     }
+
 }
 
 
