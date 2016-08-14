@@ -6,7 +6,7 @@ const CRC24_POLY: usize = 0x1864CFB;
 
 pub type Crc24 = usize;
 
-// This is an adaption of the CRC-24 algorithm from section 6.1 of TFC4880.
+// This is an adaption of the CRC-24 algorithm from section 6.1 of RFC4880.
 #[allow(unused_variables)]
 pub fn crc_octets(octets: &[u8]) -> Crc24 {
     let mut crc: Crc24 = CRC24_INIT;
