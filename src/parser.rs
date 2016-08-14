@@ -191,10 +191,10 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
         }
     }
 
-    fn read_token_or_else(&mut self, tt: TokenType, err: ParseError) -> ParseResult<Token> {
+    fn read_token_or_else(&mut self, token_type: TokenType, err: ParseError) -> ParseResult<Token> {
         match self.peek_token() {
             Some(token) => {
-                if !token.has_token_type(tt) {
+                if !token.has_token_type(token_type) {
                     return Err(err);
                 }
             } None => {
@@ -544,28 +544,82 @@ mod tests {
     use lexer::Lexer;
     use super::Parser;
     use super::MessageType;
-    use std::io;
-    use std::io::Write;
 
+    struct HeaderLineTest {
+        header_line: String,
+        header_type: MessageType
+    }
 
-    #[test]
-    fn test_parse_header_line() {
-        let string = String::from("-----BEGIN PGP MESSAGE-----\n");
-        let lexer  = Lexer::new(string.chars());
+    impl HeaderLineTest {
+        fn new(header_line: &str, header_type: MessageType) -> HeaderLineTest {
+            HeaderLineTest {
+                header_line: String::from(header_line),
+                header_type: header_type
+            }
+        }
+    }
+
+    fn run_header_line_test(test: &HeaderLineTest) {
+        let lexer  = Lexer::new(test.header_line.chars());
         let mut parser = Parser::new(lexer);
         let result = parser.parse_header_line();
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), MessageType::PGPMessage);
+        assert_eq!(result.unwrap(), test.header_type);
     }
 
-    #[test]
-    fn test_parse_tail_line() {
-        let string = String::from("-----END PGP MESSAGE-----\n");
-        let lexer  = Lexer::new(string.chars());
+    fn run_tail_line_test(test: &HeaderLineTest) {
+        let lexer  = Lexer::new(test.header_line.chars());
         let mut parser = Parser::new(lexer);
         let result = parser.parse_tail_line();
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), MessageType::PGPMessage);
+        assert_eq!(result.unwrap(), test.header_type);
     }
 
+    #[test]
+    fn test_parse_pgp_message_header_line() {
+        let test = HeaderLineTest::new("-----BEGIN PGP MESSAGE-----\n\n", MessageType::PGPMessage);
+        run_header_line_test(&test);
+    }
+
+    #[test]
+    fn test_parse_pgp_message_tail_line() {
+        let test = HeaderLineTest::new("-----END PGP MESSAGE-----\n\n", MessageType::PGPMessage);
+        run_tail_line_test(&test);
+    }
+
+    #[test]
+    fn test_parse_pgp_signature_header_line() {
+        let test = HeaderLineTest::new("-----BEGIN PGP SIGNATURE-----\n\n", MessageType::PGPSignature);
+        run_header_line_test(&test);
+    }
+
+    #[test]
+    fn test_parse_pgp_signature_tail_line() {
+        let test = HeaderLineTest::new("-----END PGP SIGNATURE-----\n\n", MessageType::PGPSignature);
+        run_tail_line_test(&test);
+    }
+
+    #[test]
+    fn test_parse_pgp_publickey_block_header_line() {
+        let test = HeaderLineTest::new("-----BEGIN PGP PUBLIC KEY BLOCK-----\n\n", MessageType::PGPPublicKeyBlock);
+        run_header_line_test(&test);
+    }
+
+    #[test]
+    fn test_parse_pgp_publickey_block_tail_line() {
+        let test = HeaderLineTest::new("-----END PGP PUBLIC KEY BLOCK-----\n\n", MessageType::PGPPublicKeyBlock);
+        run_tail_line_test(&test);
+    }
+
+    #[test]
+    fn test_parse_pgp_privatekey_block_header_line() {
+        let test = HeaderLineTest::new("-----BEGIN PGP PRIVATE KEY BLOCK-----\n\n", MessageType::PGPPrivateKeyBlock);
+        run_header_line_test(&test);
+    }
+
+    #[test]
+    fn test_parse_pgp_privatekey_block_tail_line() {
+        let test = HeaderLineTest::new("-----END PGP PRIVATE KEY BLOCK-----\n\n", MessageType::PGPPrivateKeyBlock);
+        run_tail_line_test(&test);
+    }
 }

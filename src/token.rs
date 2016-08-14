@@ -115,6 +115,7 @@ impl Location {
         self.absolute += amount as isize;
     }
 
+    #[allow(dead_code)]
     #[inline]
     pub fn decrement(&mut self, amount: usize) {
         self.absolute -= amount as isize;
