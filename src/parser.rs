@@ -145,17 +145,6 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
         self.reset_offset();
     }
 
-    fn consume_char(&mut self) {
-        if self.lookahead.is_empty() {
-            self.reset_offset();
-        } else {
-            self.lookahead.pop_front();
-            if self.offset > 0 {
-                self.offset -= 1;
-            }
-        }
-    }
-
     fn backtrack(&mut self, amount: usize) {
         if amount > self.offset {
             self.reset_offset();
@@ -203,6 +192,24 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
         }
 
         Ok(self.read_token().unwrap())
+    }
+
+    fn parse_x(&mut self) -> ParseResult<usize> {
+        let result = self.parse_number();
+        match result {
+            Ok(_) => {}
+            Err(e) => return Err(e)
+        }
+
+        match self.peek_token() {
+            Some(token) => {
+                match token.token_type() {
+                    TokenType::FiveDashes => Ok(result.unwrap()),
+                    _ => Err(ParseError::CorruptHeader)
+                }
+            }
+            None => Err(ParseError::EndOfFile)
+        }
     }
 
     fn parse_x_div_y(&mut self) -> ParseResult<(usize, usize)> {
