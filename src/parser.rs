@@ -199,6 +199,23 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
         Ok(self.read_token().unwrap())
     }
 
+    fn parse_token_lazy<T, F, E>(&mut self, token_type: TokenType, f: F, e: E) -> ParseResult<T>
+        where F: Fn(TokenType) -> T,
+              E: Fn() -> ParseError
+    {
+        match self.peek_token() {
+            Some(token) => {
+                if token.has_token_type(token_type) {
+                    self.advance_one_token();
+                    Ok(f(token_type))
+                } else {
+                    Err(e())
+                }
+            }
+            None => return Err(ParseError::EndOfFile)
+        }
+    }
+
     fn parse_x(&mut self) -> ParseResult<usize> {
         let result = self.parse_number();
         match result {
@@ -234,7 +251,7 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
                     }
                 }
             }
-            None => return Err(ParseError::CorruptHeader)
+            None => return Err(ParseError::EndOfFile)
         }
 
         let num_y = self.parse_number();
@@ -253,7 +270,6 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
                     TokenType::PGPMessagePart => {
                         match self.parse_x_div_y() {
                             Ok((x,y)) => {
-                                //self.consume(); // Do I want to consume here?
                                 self.advance_one_token();
                                 return Ok(MessageType::PGPMessagePartXofY(x,y))
                             }
@@ -261,7 +277,6 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
                         }
                         match self.parse_x() {
                             Ok(x)  => {
-                                //self.consume(); // Do I want to consume here?
                                 self.advance_one_token();
                                 return Ok(MessageType::PGPMessagePartX(x))
                             }
@@ -271,23 +286,6 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
                         }
                     }
                     _ => return Err(ParseError::CorruptHeader)
-                }
-            }
-            None => return Err(ParseError::EndOfFile)
-        }
-    }
-
-    fn parse_token_lazy<T, F, E>(&mut self, token_type: TokenType, f: F, e: E) -> ParseResult<T>
-        where F: Fn(TokenType) -> T,
-              E: Fn() -> ParseError
-    {
-        match self.peek_token() {
-            Some(token) => {
-                if token.has_token_type(token_type) {
-                    self.advance_one_token();
-                    Ok(f(token_type))
-                } else {
-                    Err(e())
                 }
             }
             None => return Err(ParseError::EndOfFile)
