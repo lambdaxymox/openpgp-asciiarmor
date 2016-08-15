@@ -108,18 +108,8 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
         }
     }
 
-    fn advance_one_token(&mut self) {
+    fn read_token(&mut self) {
         self.offset += 1;
-    }
-
-    fn read_token(&mut self) -> Option<Token> {
-        match self.peek_token() {
-            Some(token) => {
-                self.offset += 1;
-                Some(token)
-            }
-            None => None
-        }
     }
 
     fn sync(&mut self) {
@@ -160,13 +150,20 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
         }
     }
 
+    fn backtrack_with_error<T>(&mut self, result: ParseResult<T>) -> ParseResult<T> {
+        if result.is_err() {
+            self.backtrack();
+        }
+        result
+    }
+
     fn parse_number(&mut self) -> ParseResult<usize> {
         self.mark();
         let mut result = String::new();
         while let Some(token) = self.peek_token() {
             match token.token_type() {
                 TokenType::Digit => {
-                    self.advance_one_token();
+                    self.read_token();
                     result.push_str(token.as_str());
                 }
                 _ => break
@@ -185,17 +182,19 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
     }
 
     fn read_token_or_else(&mut self, token_type: TokenType, err: ParseError) -> ParseResult<Token> {
-        match self.peek_token() {
+        let result = match self.peek_token() {
             Some(token) => {
-                if !token.has_token_type(token_type) {
-                    return Err(err);
+                if token.has_token_type(token_type) {
+                    Ok(token)
+                } else {
+                    Err(err)
                 }
-            } None => {
-                return Err(ParseError::EndOfFile);
             }
-        }
+            None => Err(ParseError::EndOfFile)
+        };
 
-        Ok(self.read_token().unwrap())
+        self.read_token();
+        Ok(result.unwrap())
     }
 
     fn parse_token_lazy<T, F, E>(&mut self, token_type: TokenType, f: F, e: E) -> ParseResult<T>
@@ -206,7 +205,7 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
         let result = match self.peek_token() {
             Some(token) => {
                 if token.has_token_type(token_type) {
-                    self.advance_one_token();
+                    self.read_token();
                     Ok(f(token_type))
                 } else {
                     Err(e())
@@ -216,29 +215,22 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
         };
         match result {
             Ok(res) => Ok(res),
-            Err(e)  => {
-                self.backtrack();
-                Err(e)
-            }
+            Err(e)  => self.backtrack_with_error(Err(e))
         }
     }
 
     fn parse_part_x(&mut self) -> ParseResult<usize> {
         self.mark();
-        let result = self.parse_number();
-        if result.is_err() {
-            self.backtrack();
-            return result;
-        }
+        let result = match self.parse_number() {
+            Ok(val) => Ok(val),
+            Err(e)  => self.backtrack_with_error(Err(e))
+        };
 
         match self.peek_token() {
             Some(token) => {
                 match token.token_type() {
                     TokenType::FiveDashes => Ok(result.unwrap()),
-                    _ => {
-                        self.backtrack();
-                        Err(ParseError::CorruptHeader)
-                    }
+                    _ => self.backtrack_with_error(Err(ParseError::CorruptHeader))
                 }
             }
             None => Err(ParseError::EndOfFile)
@@ -247,41 +239,27 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
 
     fn parse_part_x_div_y(&mut self) -> ParseResult<(usize, usize)> {
         self.mark();
-        let num_x = self.parse_number();
-        match num_x {
-            Ok(_) => {}
-            Err(e) => {
-                self.backtrack();
-                return Err(e);
-            }
-        }
+        let num_x: ParseResult<usize> = match self.parse_number() {
+            Ok(val) => Ok(val),
+            Err(e)  => self.backtrack_with_error(Err(e))
+        };
 
         match self.peek_token() {
             Some(token) => {
                 match token.token_type() {
                     TokenType::ForwardSlash => {
-                        self.advance_one_token();
+                        self.read_token();
                     }
-                    _ => {
-                        self.backtrack();
-                        return Err(ParseError::CorruptHeader);
-                    }
+                    _ => return self.backtrack_with_error(Err(ParseError::CorruptHeader))
                 }
             }
-            None => {
-                self.backtrack();
-                return Err(ParseError::EndOfFile)
-            }
+            None => return self.backtrack_with_error(Err(ParseError::EndOfFile))
         }
 
-        let num_y = self.parse_number();
-        match num_y {
-            Ok(_) => {}
-            Err(e) => {
-                self.backtrack();
-                return Err(e);
-            }
-        }
+        let num_y = match self.parse_number() {
+                Ok(val) => Ok(val),
+                Err(e)  => self.backtrack_with_error(Err(e))
+        };
 
         Ok((num_x.unwrap(), num_y.unwrap()))
     }
@@ -292,10 +270,9 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
             Some(token) => {
                 match token.token_type() {
                     TokenType::PGPMessagePart => {
-                        self.advance_one_token();
+                        self.read_token();
                         match self.parse_part_x_div_y() {
                             Ok((x,y)) => {
-                                //self.advance_one_token();
                                 return Ok(MessageType::PGPMessagePartXofY(x,y))
                             }
                             Err(_)    => {
@@ -304,19 +281,12 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
                         }
                         match self.parse_part_x() {
                             Ok(x)  => {
-                                //self.advance_one_token();
                                 Ok(MessageType::PGPMessagePartX(x))
                             }
-                            Err(_) => {
-                                self.backtrack();
-                                Err(ParseError::CorruptHeader)
-                            }
+                            Err(_) => self.backtrack_with_error(Err(ParseError::CorruptHeader))
                         }
                     }
-                    _ => {
-                        self.backtrack();
-                        Err(ParseError::CorruptHeader)
-                    }
+                    _ => self.backtrack_with_error(Err(ParseError::CorruptHeader))
                 }
             }
             None => Err(ParseError::EndOfFile)
@@ -409,27 +379,35 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
                             | TokenType::MessageID
                             | TokenType::Hash
                             | TokenType::Charset
-                            | TokenType::BlankLine => break,
+                            | TokenType::BlankLine => {
+                                break;
+                        }
                         _ => {
                             result.push_str(token.as_str());
                             self.read_token();
                         }
                     }
                 }
-                None => {
-                    return Err(ParseError::EndOfFile)
-                }
+                None => return Err(ParseError::EndOfFile)
             }
         }
 
         Ok(result)
     }
 
+    fn skip_token(&mut self, token_type: TokenType) {
+        if let Some(token) = self.peek_token() {
+            if token.has_token_type(token_type) {
+                self.read_token();
+            }
+        }
+    }
+
     fn skip_whitespace(&mut self) {
         while let Some(token) = self.peek_token() {
             match token.token_type() {
                 TokenType::WhiteSpace => {
-                    self.advance_one_token();
+                    self.read_token();
                 }
                 _ => break
             }
@@ -595,7 +573,7 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), test.header_type);
     }
-    
+
     #[test]
     fn test_parse_pgp_message_header_line() {
         let test = HeaderLineTest::new("-----BEGIN PGP MESSAGE-----\n\n", MessageType::PGPMessage);
