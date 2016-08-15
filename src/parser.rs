@@ -253,14 +253,16 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
                     TokenType::PGPMessagePart => {
                         match self.parse_x_div_y() {
                             Ok((x,y)) => {
-                                self.consume(); // Do I want to consume here?
+                                //self.consume(); // Do I want to consume here?
+                                self.advance_one_token();
                                 return Ok(MessageType::PGPMessagePartXofY(x,y))
                             }
                             Err(_)    => {}
                         }
-                        match self.parse_number() {
+                        match self.parse_x() {
                             Ok(x)  => {
-                                self.consume(); // Do I want to consume here?
+                                //self.consume(); // Do I want to consume here?
+                                self.advance_one_token();
                                 return Ok(MessageType::PGPMessagePartX(x))
                             }
                             Err(_) => {
@@ -275,68 +277,49 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
         }
     }
 
-    fn parse_pgp_message(&mut self) -> ParseResult<MessageType> {
+    fn parse_token_lazy<T, F, E>(&mut self, token_type: TokenType, f: F, e: E) -> ParseResult<T>
+        where F: Fn(TokenType) -> T,
+              E: Fn() -> ParseError
+    {
         match self.peek_token() {
             Some(token) => {
-                match token.token_type() {
-                    TokenType::PGPMessage => {
-                        //self.read_token();
-                        self.advance_one_token();
-                        Ok(MessageType::PGPMessage)
-                    }
-                    _ => Err(ParseError::CorruptHeader)
+                if token.has_token_type(token_type) {
+                    self.advance_one_token();
+                    Ok(f(token_type))
+                } else {
+                    Err(e())
                 }
             }
             None => return Err(ParseError::EndOfFile)
         }
+    }
+
+    fn parse_pgp_message(&mut self) -> ParseResult<MessageType> {
+        self.parse_token_lazy(TokenType::PGPMessage,
+            |tt| { MessageType::PGPMessage },
+            || { ParseError::CorruptHeader }
+        )
     }
 
     fn parse_pgp_publickey_block(&mut self) -> ParseResult<MessageType> {
-        match self.peek_token() {
-            Some(token) => {
-                match token.token_type() {
-                    TokenType::PGPPublicKeyBlock => {
-                        //self.consume();
-                        self.advance_one_token();
-                        Ok(MessageType::PGPPublicKeyBlock)
-                    }
-                    _ => Err(ParseError::CorruptHeader)
-                }
-            }
-            None => return Err(ParseError::EndOfFile)
-        }
+        self.parse_token_lazy(TokenType::PGPPublicKeyBlock,
+            |tt| { MessageType::PGPPublicKeyBlock },
+            || { ParseError::CorruptHeader }
+        )
     }
 
     fn parse_pgp_privatekey_block(&mut self) -> ParseResult<MessageType> {
-        match self.peek_token() {
-            Some(token) => {
-                match token.token_type() {
-                    TokenType::PGPPrivateKeyBlock => {
-                        //self.consume();
-                        self.advance_one_token();
-                        Ok(MessageType::PGPPrivateKeyBlock)
-                    }
-                    _ => Err(ParseError::CorruptHeader)
-                }
-            }
-            None => return Err(ParseError::EndOfFile)
-        }
+        self.parse_token_lazy(TokenType::PGPPrivateKeyBlock,
+            |tt| { MessageType::PGPPrivateKeyBlock },
+            || { ParseError::CorruptHeader }
+        )
     }
 
     fn parse_pgp_signature(&mut self) -> ParseResult<MessageType> {
-        match self.peek_token() {
-            Some(token) => {
-                match token.token_type() {
-                    TokenType::PGPSignature => {
-                        //self.consume();
-                        self.advance_one_token();
-                        Ok(MessageType::PGPSignature)
-                    }
-                    _ => Err(ParseError::CorruptHeader)
-                }
-            }
-            None => return Err(ParseError::EndOfFile)
-        }
+        self.parse_token_lazy(TokenType::PGPSignature,
+            |tt| { MessageType::PGPSignature },
+            || { ParseError::CorruptHeader }
+        )
     }
 
     fn parse_header_tail_line(&mut self, token_type: TokenType) -> ParseResult<MessageType> {
@@ -419,7 +402,8 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
                 Some(token) => {
                     match token.token_type() {
                         TokenType::WhiteSpace => {
-                            self.read_token();
+                            //self.read_token();
+                            self.advance_one_token();
                         }
                         _ => break
                     }
