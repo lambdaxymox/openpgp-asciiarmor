@@ -395,14 +395,6 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
         Ok(result)
     }
 
-    fn skip_token(&mut self, token_type: TokenType) {
-        if let Some(token) = self.peek_token() {
-            if token.has_token_type(token_type) {
-                self.read_token();
-            }
-        }
-    }
-
     fn skip_whitespace(&mut self) {
         while let Some(token) = self.peek_token() {
             match token.token_type() {
@@ -541,8 +533,8 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
 #[cfg(test)]
 mod tests {
     use lexer::Lexer;
-    use super::Parser;
-    use super::MessageType;
+    use super::{Parser, HeaderType, MessageType, Header};
+
 
     struct HeaderLineTest {
         header_line: String,
@@ -644,6 +636,64 @@ mod tests {
     fn test_parse_pgp_message_parts_indefinite_tail_line() {
         let test = HeaderLineTest::new("-----END PGP MESSAGE, PART 1-----\n\n", MessageType::PGPMessagePartX(1));
         run_tail_line_test(&test);
+    }
+
+    struct HeaderTestCase {
+        text: String,
+        header: Header
+    }
+
+    impl HeaderTestCase {
+        fn new(text: &str, header: Header) -> HeaderTestCase {
+            HeaderTestCase {
+                text: String::from(text),
+                header: header
+            }
+        }
+    }
+
+    struct HeaderTest {
+        data: Vec<HeaderTestCase>
+    }
+
+    fn header_test_cases() -> HeaderTest {
+        HeaderTest {
+            data: vec![
+                HeaderTestCase {
+                    text: String::from(
+                        "-----BEGIN PGP MESSAGE-----\
+                        Version: OpenPrivacy 0.99\n\
+                        Comment: Foo Bar Baz\n\
+                                \n\
+                        yDgBO22WxBHv7O8X7O/jygAEzol56iUKiXmV+XmpCtmpqQUKiQrFqclFqUDBovzS\n\
+                        vBSFjNSiVHsuAA==\n\
+                        =njUN\n\
+                        -----END PGP MESSAGE-----
+                        "),
+                    header: Header {
+                        header_type:  MessageType::PGPMessage,
+                        header_block: vec![
+                            (HeaderType::Version, String::from("OpenPrivacy 0.99")),
+                            (HeaderType::Comment, String::from("Foo Bar Baz"))
+                        ]
+                    }
+                }
+            ]
+        }
+    }
+
+    fn run_header_tests(tests: &HeaderTest) {
+        for test_case in tests.data.iter() {
+            let lexer = Lexer::new(test_case.text.chars());
+            let mut parser = Parser::new(lexer);
+            let result = parser.parse_header().unwrap();
+            assert_eq!(result.header_type, test_case.header.header_type);
+        }
+    }
+
+    #[test]
+    fn test_header() {
+        run_header_tests(&header_test_cases());
     }
 
 }
