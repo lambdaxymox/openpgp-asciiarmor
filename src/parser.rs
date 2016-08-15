@@ -622,4 +622,28 @@ mod tests {
         let test = HeaderLineTest::new("-----END PGP PRIVATE KEY BLOCK-----\n\n", MessageType::PGPPrivateKeyBlock);
         run_tail_line_test(&test);
     }
+
+    #[test]
+    fn test_parse_pgp_message_part_xofy_header_line() {
+        let test = HeaderLineTest::new("-----BEGIN PGP MESSAGE, PART 1/1-----\n\n", MessageType::PGPPrivateKeyBlock);
+        run_tail_line_test(&test);
+    }
+
+    #[test]
+    fn test_parse_pgp_message_part_xofy_tail_line() {
+        let test = HeaderLineTest::new("-----END PGP MESSAGE, PART 1/1-----\n\n", MessageType::PGPPrivateKeyBlock);
+        run_tail_line_test(&test);
+    }
+
+    #[test]
+    fn test_parse_pgp_message_parts_indefinite_header_line() {
+        let test = HeaderLineTest::new("-----BEGIN PGP MESSAGE, PART 1-----\n\n", MessageType::PGPPrivateKeyBlock);
+        run_tail_line_test(&test);
+    }
+
+    #[test]
+    fn test_parse_pgp_message_parts_indefinite_tail_line() {
+        let test = HeaderLineTest::new("-----END PGP MESSAGE, PART 1-----\n\n", MessageType::PGPPrivateKeyBlock);
+        run_tail_line_test(&test);
+    }
 }
