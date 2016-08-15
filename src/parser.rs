@@ -624,13 +624,13 @@ mod tests {
 
     #[test]
     fn test_parse_pgp_message_part_xofy_header_line() {
-        let test = HeaderLineTest::new("-----BEGIN PGP MESSAGE, PART 1/1-----\n\n", MessageType::PGPMessagePartXofY(1,1));
+        let test = HeaderLineTest::new("-----BEGIN PGP MESSAGE, PART 1/13-----\n\n", MessageType::PGPMessagePartXofY(1,13));
         run_header_line_test(&test);
     }
 
     #[test]
     fn test_parse_pgp_message_part_xofy_tail_line() {
-        let test = HeaderLineTest::new("-----END PGP MESSAGE, PART 1/1-----\n\n", MessageType::PGPMessagePartXofY(1,1));
+        let test = HeaderLineTest::new("-----END PGP MESSAGE, PART 1/13-----\n\n", MessageType::PGPMessagePartXofY(1,13));
         run_tail_line_test(&test);
     }
 
