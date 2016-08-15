@@ -259,7 +259,9 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
         match self.peek_token() {
             Some(token) => {
                 match token.token_type() {
-                    TokenType::ForwardSlash | TokenType::FiveDashes => {}
+                    TokenType::ForwardSlash => {
+                        self.advance_one_token();
+                    }
                     _ => {
                         self.backtrack();
                         return Err(ParseError::CorruptHeader);
@@ -593,7 +595,7 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), test.header_type);
     }
-
+    
     #[test]
     fn test_parse_pgp_message_header_line() {
         let test = HeaderLineTest::new("-----BEGIN PGP MESSAGE-----\n\n", MessageType::PGPMessage);
@@ -641,19 +643,19 @@ mod tests {
         let test = HeaderLineTest::new("-----END PGP PRIVATE KEY BLOCK-----\n\n", MessageType::PGPPrivateKeyBlock);
         run_tail_line_test(&test);
     }
-    /*
+
     #[test]
     fn test_parse_pgp_message_part_xofy_header_line() {
-        let test = HeaderLineTest::new("-----BEGIN PGP MESSAGE, PART 1/1-----\n\n", MessageType::PGPMessagePartXofY);
+        let test = HeaderLineTest::new("-----BEGIN PGP MESSAGE, PART 1/1-----\n\n", MessageType::PGPMessagePartXofY(1,1));
         run_header_line_test(&test);
     }
 
     #[test]
     fn test_parse_pgp_message_part_xofy_tail_line() {
-        let test = HeaderLineTest::new("-----END PGP MESSAGE, PART 1/1-----\n\n", MessageType::PGPMessagePartXofY);
+        let test = HeaderLineTest::new("-----END PGP MESSAGE, PART 1/1-----\n\n", MessageType::PGPMessagePartXofY(1,1));
         run_tail_line_test(&test);
     }
-    */
+
     #[test]
     fn test_parse_pgp_message_parts_indefinite_header_line() {
         let test = HeaderLineTest::new("-----BEGIN PGP MESSAGE, PART 1-----\n\n", MessageType::PGPMessagePartX(1));
@@ -665,4 +667,5 @@ mod tests {
         let test = HeaderLineTest::new("-----END PGP MESSAGE, PART 1-----\n\n", MessageType::PGPMessagePartX(1));
         run_tail_line_test(&test);
     }
+
 }
