@@ -163,18 +163,13 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
     fn parse_number(&mut self) -> ParseResult<usize> {
         self.mark();
         let mut result = String::new();
-        loop {
-            match self.peek_token() {
-                Some(token) => {
-                    match token.token_type() {
-                        TokenType::Digit => {
-                            self.advance_one_token();
-                            result.push_str(token.as_str());
-                        }
-                        _ => break
-                    }
+        while let Some(token) = self.peek_token() {
+            match token.token_type() {
+                TokenType::Digit => {
+                    self.advance_one_token();
+                    result.push_str(token.as_str());
                 }
-                None => break
+                _ => break
             }
         }
 
@@ -264,8 +259,7 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
         match self.peek_token() {
             Some(token) => {
                 match token.token_type() {
-                    TokenType::ForwardSlash => {}
-                    TokenType::FiveDashes => {}
+                    TokenType::ForwardSlash | TokenType::FiveDashes => {}
                     _ => {
                         self.backtrack();
                         return Err(ParseError::CorruptHeader);
@@ -309,7 +303,7 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
                         match self.parse_part_x() {
                             Ok(x)  => {
                                 //self.advance_one_token();
-                                return Ok(MessageType::PGPMessagePartX(x))
+                                Ok(MessageType::PGPMessagePartX(x))
                             }
                             Err(_) => {
                                 self.backtrack();
@@ -319,38 +313,38 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
                     }
                     _ => {
                         self.backtrack();
-                        return Err(ParseError::CorruptHeader)
+                        Err(ParseError::CorruptHeader)
                     }
                 }
             }
-            None => return Err(ParseError::EndOfFile)
+            None => Err(ParseError::EndOfFile)
         }
     }
 
     fn parse_pgp_message(&mut self) -> ParseResult<MessageType> {
         self.parse_token_lazy(TokenType::PGPMessage,
-            |tt| { MessageType::PGPMessage },
+            |_| { MessageType::PGPMessage },
             || { ParseError::CorruptHeader }
         )
     }
 
     fn parse_pgp_publickey_block(&mut self) -> ParseResult<MessageType> {
         self.parse_token_lazy(TokenType::PGPPublicKeyBlock,
-            |tt| { MessageType::PGPPublicKeyBlock },
+            |_| { MessageType::PGPPublicKeyBlock },
             || { ParseError::CorruptHeader }
         )
     }
 
     fn parse_pgp_privatekey_block(&mut self) -> ParseResult<MessageType> {
         self.parse_token_lazy(TokenType::PGPPrivateKeyBlock,
-            |tt| { MessageType::PGPPrivateKeyBlock },
+            |_| { MessageType::PGPPrivateKeyBlock },
             || { ParseError::CorruptHeader }
         )
     }
 
     fn parse_pgp_signature(&mut self) -> ParseResult<MessageType> {
         self.parse_token_lazy(TokenType::PGPSignature,
-            |tt| { MessageType::PGPSignature },
+            |_| { MessageType::PGPSignature },
             || { ParseError::CorruptHeader }
         )
     }
@@ -412,8 +406,8 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
                             | TokenType::Comment
                             | TokenType::MessageID
                             | TokenType::Hash
-                            | TokenType::Charset => break,
-                        TokenType::BlankLine => break,
+                            | TokenType::Charset
+                            | TokenType::BlankLine => break,
                         _ => {
                             result.push_str(token.as_str());
                             self.read_token();
@@ -429,22 +423,15 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
         Ok(result)
     }
 
-    fn skip_whitespace(&mut self) -> ParseResult<()> {
-        loop {
-            match self.peek_token() {
-                Some(token) => {
-                    match token.token_type() {
-                        TokenType::WhiteSpace => {
-                            self.advance_one_token();
-                        }
-                        _ => break
-                    }
+    fn skip_whitespace(&mut self) {
+        while let Some(token) = self.peek_token() {
+            match token.token_type() {
+                TokenType::WhiteSpace => {
+                    self.advance_one_token();
                 }
-                None => return Err(ParseError::EndOfFile)
+                _ => break
             }
         }
-
-        Ok(())
     }
 
     fn parse_headerkv(&mut self) -> ParseResult<(HeaderType, String)> {

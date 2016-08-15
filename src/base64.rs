@@ -25,8 +25,8 @@ impl Base64 {
 
     pub fn push_octet(&mut self, octet: Octet) {
         for i in 0..4 {
-            let sextet_i = octet & (SEXTET_MASK << 6*(3-i));
-            let sextet   = sextet_i >> 6*(3-i);
+            let sextet_i = octet & (SEXTET_MASK << (6*(3-i)));
+            let sextet   = sextet_i >> (6*(3-i));
             self.data.push(sextet);
         }
     }
@@ -34,8 +34,8 @@ impl Base64 {
     pub fn from_octet(octet: Octet) -> Base64 {
         let mut data = Vec::new();
         for i in 0..4 {
-            let sextet_i = octet & (SEXTET_MASK << 6*(3-i));
-            let sextet   = sextet_i >> 6*(3-i);
+            let sextet_i = octet & (SEXTET_MASK << (6*(3-i)));
+            let sextet   = sextet_i >> (6*(3-i));
             data.push(sextet);
         }
 
@@ -45,7 +45,7 @@ impl Base64 {
     pub fn to_octet(&self) -> Option<Octet> {
         if self.data.len() <= 4 {
             let mut octet = 0;
-            for sextet in self.data.iter() {
+            for sextet in &self.data {
                 octet <<= 6;
                 octet |= sextet & SEXTET_MASK;
             }

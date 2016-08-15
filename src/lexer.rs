@@ -48,9 +48,7 @@ impl<S> Lexer<S>
               G: Fn(&mut Lexer<S>) -> Option<Token>
     {
         match scanner(self) {
-            Some(token) => {
-                return token;
-            }
+            Some(token) => token,
             None => default(self).unwrap()
         }
     }
