@@ -106,6 +106,10 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
         }
     }
 
+    fn advance_one_token(&mut self) {
+        self.offset += 1;
+    }
+
     fn read_token(&mut self) -> Option<Token> {
         match self.peek_token() {
             Some(token) => {
@@ -160,8 +164,9 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
                 Some(token) => {
                     match token.token_type() {
                         TokenType::Digit => {
+                            //self.read_token();
+                            self.advance_one_token();
                             result.push_str(token.as_str());
-                            self.read_token();
                         }
                         _ => break
                     }
@@ -275,7 +280,8 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
             Some(token) => {
                 match token.token_type() {
                     TokenType::PGPMessage => {
-                        self.read_token();
+                        //self.read_token();
+                        self.advance_one_token();
                         Ok(MessageType::PGPMessage)
                     }
                     _ => Err(ParseError::CorruptHeader)
@@ -290,7 +296,8 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
             Some(token) => {
                 match token.token_type() {
                     TokenType::PGPPublicKeyBlock => {
-                        self.consume();
+                        //self.consume();
+                        self.advance_one_token();
                         Ok(MessageType::PGPPublicKeyBlock)
                     }
                     _ => Err(ParseError::CorruptHeader)
@@ -305,7 +312,8 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
             Some(token) => {
                 match token.token_type() {
                     TokenType::PGPPrivateKeyBlock => {
-                        self.consume();
+                        //self.consume();
+                        self.advance_one_token();
                         Ok(MessageType::PGPPrivateKeyBlock)
                     }
                     _ => Err(ParseError::CorruptHeader)
@@ -320,7 +328,8 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
             Some(token) => {
                 match token.token_type() {
                     TokenType::PGPSignature => {
-                        self.consume();
+                        //self.consume();
+                        self.advance_one_token();
                         Ok(MessageType::PGPSignature)
                     }
                     _ => Err(ParseError::CorruptHeader)
