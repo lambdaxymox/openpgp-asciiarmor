@@ -6,6 +6,9 @@ use base64::Base64;
 use crc24;
 use std::io;
 use std::io::Write;
+use std::error;
+use std::fmt;
+
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 enum MessageType {
@@ -74,6 +77,27 @@ impl ParseError {
     }
 }
 
+impl fmt::Display for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            ParseError::CorruptHeader => write!(f, "Corrupt header"),
+            ParseError::InvalidHeaderLine => write!(f, "Invalid header line."),
+            ParseError::EndOfFile => write!(f, "Reached end of armored data."),
+            ParseError::ParseError => write!(f, "Parser error.")
+        }
+    }
+}
+
+impl error::Error for ParseError {
+    fn description(&self) -> &str {
+        match *self {
+            ParseError::CorruptHeader => "The header data is corrupted.",
+            ParseError::InvalidHeaderLine => "A header line contains invalid data.",
+            ParseError::EndOfFile => "There is no more data available.",
+            ParseError::ParseError => "A general parsing error."
+        }
+    }
+}
 
 pub struct Parser<S> where S: Iterator<Item=char> {
     input:  Peekable<Lexer<S>>,
