@@ -1,6 +1,4 @@
-extern crate combine;
+#[macro_use]
+extern crate nom;
 
-pub mod ascii_armor;
-
-mod armor_parser;
-mod armor_lexer;
+mod parser;
