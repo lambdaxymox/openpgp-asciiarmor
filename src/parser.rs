@@ -346,17 +346,10 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
     }
 
     fn parse_header_tail_line(&mut self, token_type: TokenType) -> ParseResult<MessageType> {
-        match self.read_token_or_else(TokenType::FiveDashes, ParseError::CorruptHeader) {
-            Ok(_)  => {}
-            Err(e) => return Err(e)
-        }
+        try!(self.read_token_or_else(TokenType::FiveDashes, ParseError::CorruptHeader));
+        try!(self.read_token_or_else(token_type, ParseError::CorruptHeader));
 
-        match self.read_token_or_else(token_type, ParseError::CorruptHeader) {
-            Ok(_) => {}
-            Err(e) => return Err(e)
-        }
-
-        let message_type = match self.peek_token() {
+        let message_type = try!(match self.peek_token() {
             Some(token) => {
                 match token.token_type() {
                     TokenType::PGPMessagePart     => self.parse_pgp_message_part(),
@@ -368,20 +361,12 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
                 }
             }
             None => return Err(ParseError::EndOfFile)
-        };
+        });
 
-        match message_type {
-            Ok(_) => {}
-            Err(e) => return Err(e)
-        }
-
-        match self.read_token_or_else(TokenType::FiveDashes, ParseError::CorruptHeader) {
-            Ok(_)  => {}
-            Err(e) => return Err(e)
-        }
+        try!(self.read_token_or_else(TokenType::FiveDashes, ParseError::CorruptHeader));
 
         self.consume();
-        Ok(message_type.unwrap())
+        Ok(message_type)
     }
 
     fn parse_header_line(&mut self) -> ParseResult<MessageType> {
@@ -469,21 +454,22 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
                 return Err(ParseError::EndOfFile)
             }
         }
-        let header_text = match self.peek_token() {
+        let header_text = try!(match self.peek_token() {
             Some(_) => {
                 self.parse_header_text()
             }
             None => {
                 return Err(ParseError::EndOfFile)
             }
-        };
+        });
+        /*
         match header_text {
             Ok(_) => {}
             Err(e) => return Err(e)
         }
-
+        */
         self.consume();
-        Ok((header_type.unwrap(), header_text.unwrap()))
+        Ok((header_type.unwrap(), header_text))
     }
 
     fn parse_header_block(&mut self) -> ParseResult<Vec<(HeaderType, String)>> {
@@ -526,21 +512,13 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
     }
 
     fn parse_header(&mut self) -> ParseResult<Header> {
-        let header_type: ParseResult<MessageType> = match self.parse_header_line() {
-            Ok(val) => Ok(val),
-            Err(e) => return Err(e)
-        };
-
+        let header_type: MessageType = try!(self.parse_header_line());
         self.skip_whitespace();
-
-        let header_block: ParseResult<Vec<(HeaderType, String)>> = match self.parse_header_block() {
-            Ok(block) => Ok(block),
-            Err(e) => return Err(e)
-        };
+        let header_block: Vec<(HeaderType, String)> = try!(self.parse_header_block());
 
         let header = Header {
-            header_type: header_type.unwrap(),
-            header_block: header_block.unwrap()
+            header_type: header_type, /*.unwrap(),*/
+            header_block: header_block /*.unwrap()*/
         };
 
         self.consume();
