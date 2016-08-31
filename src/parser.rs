@@ -132,6 +132,15 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
         }
     }
 
+    fn peek_token_or_eof<F,T>(&mut self, f: F) -> ParseResult<T>
+        where F: Fn(&mut Self, Token) -> ParseResult<T>
+    {
+        match self.peek_token() {
+            Some(token) => f(self, token),
+            None => Err(ParseError::EndOfFile)
+        }
+    }
+
     fn read_token(&mut self) {
         self.offset += 1;
     }
@@ -181,6 +190,15 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
         result
     }
 
+    fn try_or_backtrack<F,T>(&mut self, f: F) -> ParseResult<T>
+        where F: Fn(&mut Self) -> ParseResult<T>
+    {
+        match f(self) {
+            Ok(res) => Ok(res),
+            Err(e)  => self.backtrack_with_error(Err(e))
+        }
+    }
+
     fn parse_number(&mut self) -> ParseResult<usize> {
         self.mark();
         let mut result = String::new();
@@ -206,19 +224,16 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
     }
 
     fn read_token_or_else(&mut self, token_type: TokenType, err: ParseError) -> ParseResult<Token> {
-        let result = match self.peek_token() {
-            Some(token) => {
-                if token.has_token_type(token_type) {
-                    Ok(token)
-                } else {
-                    Err(err)
-                }
+        let result = try!(self.peek_token_or_eof(|_, token| {
+            if token.has_token_type(token_type) {
+                Ok(token)
+            } else {
+                Err(err)
             }
-            None => Err(ParseError::EndOfFile)
-        };
+        }));
 
         self.read_token();
-        Ok(result.unwrap())
+        Ok(result)
     }
 
     fn parse_token_lazy<T, F, E>(&mut self, token_type: TokenType, f: F, e: E) -> ParseResult<T>
@@ -226,47 +241,31 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
               E: Fn() -> ParseError
     {
         self.mark();
-        let result = match self.peek_token() {
-            Some(token) => {
-                if token.has_token_type(token_type) {
-                    self.read_token();
-                    Ok(f(token_type))
-                } else {
-                    Err(e())
-                }
+        self.peek_token_or_eof(|parser, token| {
+            if token.has_token_type(token_type) {
+                parser.read_token();
+                Ok(f(token_type))
+            } else {
+                parser.backtrack_with_error(Err(e()))
             }
-            None => Err(ParseError::EndOfFile)
-        };
-        match result {
-            Ok(res) => Ok(res),
-            Err(e)  => self.backtrack_with_error(Err(e))
-        }
+        })
     }
 
     fn parse_part_x(&mut self) -> ParseResult<usize> {
         self.mark();
-        let result = match self.parse_number() {
-            Ok(val) => Ok(val),
-            Err(e)  => self.backtrack_with_error(Err(e))
-        };
+        let result = try!(self.try_or_backtrack(Self::parse_number));
 
-        match self.peek_token() {
-            Some(token) => {
-                match token.token_type() {
-                    TokenType::FiveDashes => Ok(result.unwrap()),
-                    _ => self.backtrack_with_error(Err(ParseError::CorruptHeader))
-                }
+        self.peek_token_or_eof(|parser, token| {
+            match token.token_type() {
+                TokenType::FiveDashes => Ok(result),
+                _ => parser.backtrack_with_error(Err(ParseError::CorruptHeader))
             }
-            None => Err(ParseError::EndOfFile)
-        }
+        })
     }
 
     fn parse_part_x_div_y(&mut self) -> ParseResult<(usize, usize)> {
         self.mark();
-        let num_x: ParseResult<usize> = match self.parse_number() {
-            Ok(val) => Ok(val),
-            Err(e)  => self.backtrack_with_error(Err(e))
-        };
+        let num_x = try!(self.try_or_backtrack(Self::parse_number));
 
         match self.peek_token() {
             Some(token) => {
@@ -280,41 +279,33 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
             None => return self.backtrack_with_error(Err(ParseError::EndOfFile))
         }
 
-        let num_y = match self.parse_number() {
-                Ok(val) => Ok(val),
-                Err(e)  => self.backtrack_with_error(Err(e))
-        };
+        let num_y = try!(self.try_or_backtrack(Self::parse_number));
 
-        Ok((num_x.unwrap(), num_y.unwrap()))
+        Ok((num_x, num_y))
     }
 
     fn parse_pgp_message_part(&mut self) -> ParseResult<MessageType> {
         self.mark();
-        match self.peek_token() {
-            Some(token) => {
-                match token.token_type() {
-                    TokenType::PGPMessagePart => {
-                        self.read_token();
-                        match self.parse_part_x_div_y() {
-                            Ok((x,y)) => {
-                                return Ok(MessageType::PGPMessagePartXofY(x,y))
-                            }
-                            Err(_)    => {
-                                self.backtrack();
-                            }
+        self.peek_token_or_eof(|parser, token| {
+            match token.token_type() {
+                TokenType::PGPMessagePart => {
+                    parser.read_token();
+                    match parser.parse_part_x_div_y() {
+                        Ok((x,y)) => {
+                            return Ok(MessageType::PGPMessagePartXofY(x,y))
                         }
-                        match self.parse_part_x() {
-                            Ok(x)  => {
-                                Ok(MessageType::PGPMessagePartX(x))
-                            }
-                            Err(_) => self.backtrack_with_error(Err(ParseError::CorruptHeader))
-                        }
+                        Err(_)    => parser.backtrack()
                     }
-                    _ => self.backtrack_with_error(Err(ParseError::CorruptHeader))
+                    match parser.parse_part_x() {
+                        Ok(x)  => {
+                            Ok(MessageType::PGPMessagePartX(x))
+                        }
+                        Err(_) => parser.backtrack_with_error(Err(ParseError::CorruptHeader))
+                    }
                 }
+                _ => parser.backtrack_with_error(Err(ParseError::CorruptHeader))
             }
-            None => Err(ParseError::EndOfFile)
-        }
+        })
     }
 
     fn parse_pgp_message(&mut self) -> ParseResult<MessageType> {
@@ -349,19 +340,16 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
         try!(self.read_token_or_else(TokenType::FiveDashes, ParseError::CorruptHeader));
         try!(self.read_token_or_else(token_type, ParseError::CorruptHeader));
 
-        let message_type = try!(match self.peek_token() {
-            Some(token) => {
-                match token.token_type() {
-                    TokenType::PGPMessagePart     => self.parse_pgp_message_part(),
-                    TokenType::PGPMessage         => self.parse_pgp_message(),
-                    TokenType::PGPPublicKeyBlock  => self.parse_pgp_publickey_block(),
-                    TokenType::PGPPrivateKeyBlock => self.parse_pgp_privatekey_block(),
-                    TokenType::PGPSignature       => self.parse_pgp_signature(),
-                    _ => return Err(ParseError::CorruptHeader)
-                }
+        let message_type = try!(self.peek_token_or_eof(|parser, token| {
+            match token.token_type() {
+                TokenType::PGPMessagePart     => parser.parse_pgp_message_part(),
+                TokenType::PGPMessage         => parser.parse_pgp_message(),
+                TokenType::PGPPublicKeyBlock  => parser.parse_pgp_publickey_block(),
+                TokenType::PGPPrivateKeyBlock => parser.parse_pgp_privatekey_block(),
+                TokenType::PGPSignature       => parser.parse_pgp_signature(),
+                _ => return Err(ParseError::CorruptHeader)
             }
-            None => return Err(ParseError::EndOfFile)
-        });
+        }));
 
         try!(self.read_token_or_else(TokenType::FiveDashes, ParseError::CorruptHeader));
 
@@ -416,60 +404,35 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
     }
 
     fn parse_headerkv(&mut self) -> ParseResult<(HeaderType, String)> {
-        let header_type = match self.peek_token() {
-            Some(token) => {
-                match token.token_type() {
-                    tt @ TokenType::Version
-                        | tt @ TokenType::Comment
-                        | tt @ TokenType::MessageID
-                        | tt @ TokenType::Hash
-                        | tt @ TokenType::Charset => {
-                           Ok(token_type_to_header_type(tt))
-                    }
-                    _ => return Err(ParseError::InvalidHeaderLine)
+        let header_type = try!(self.peek_token_or_eof(|parser, token| {
+            match token.token_type() {
+                tt @ TokenType::Version
+                    | tt @ TokenType::Comment
+                    | tt @ TokenType::MessageID
+                    | tt @ TokenType::Hash
+                    | tt @ TokenType::Charset => {
+                        parser.read_token();
+                        parser.skip_whitespace();
+                        Ok(token_type_to_header_type(tt))
                 }
+                _ => return Err(ParseError::InvalidHeaderLine)
             }
-            None => {
-                return Err(ParseError::EndOfFile)
-            }
-        };
-        match header_type {
-            Ok(_) => {
-                self.read_token();
-                self.skip_whitespace();
-            }
-            Err(e) => return Err(e)
-        }
-        match self.peek_token() {
-            Some(token) => {
-                match token.token_type() {
-                    TokenType::ColonSpace => {
-                        self.read_token();
-                        self.skip_whitespace();
-                    }
-                    _ => return Err(ParseError::InvalidHeaderLine)
+        }));
+
+        try!(self.peek_token_or_eof(|parser, token| {
+            match token.token_type() {
+                TokenType::ColonSpace => {
+                    parser.read_token();
+                    parser.skip_whitespace();
+                    Ok(())
                 }
+                _ => return Err(ParseError::InvalidHeaderLine)
             }
-            None => {
-                return Err(ParseError::EndOfFile)
-            }
-        }
-        let header_text = try!(match self.peek_token() {
-            Some(_) => {
-                self.parse_header_text()
-            }
-            None => {
-                return Err(ParseError::EndOfFile)
-            }
-        });
-        /*
-        match header_text {
-            Ok(_) => {}
-            Err(e) => return Err(e)
-        }
-        */
+        }));
+        let header_text = try!(self.peek_token_or_eof(|parser, _| parser.parse_header_text()));
+
         self.consume();
-        Ok((header_type.unwrap(), header_text))
+        Ok((header_type, header_text))
     }
 
     fn parse_header_block(&mut self) -> ParseResult<Vec<(HeaderType, String)>> {
@@ -479,18 +442,12 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
                 Some(token) => {
                     match token.token_type() {
                         TokenType::Version
-                           | TokenType::Comment
-                           | TokenType::MessageID
-                           | TokenType::Hash
-                           | TokenType::Charset => {
-
-                            let kv = self.parse_headerkv();
-                            match kv {
-                                Ok((key, val)) => {
-                                    result.push((key, val));
-                                }
-                                Err(e) => return Err(e)
-                            }
+                        | TokenType::Comment
+                        | TokenType::MessageID
+                        | TokenType::Hash
+                        | TokenType::Charset => {
+                            try!(self.parse_headerkv()
+                                     .map(|(key, val)| { result.push((key, val)); }));
                         }
                         TokenType::BlankLine => {
                             self.read_token();
@@ -517,8 +474,8 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
         let header_block: Vec<(HeaderType, String)> = try!(self.parse_header_block());
 
         let header = Header {
-            header_type: header_type, /*.unwrap(),*/
-            header_block: header_block /*.unwrap()*/
+            header_type: header_type,
+            header_block: header_block
         };
 
         self.consume();
