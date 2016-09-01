@@ -241,3 +241,16 @@ named!(parse_header_data_line <(HeaderLineType, String)>,
         ||{ (header_line_type, header_line_data) }
     )
 );
+
+named!(parse_header_data <(Vec<(HeaderLineType, String)>)>, many0!(parse_header_data_line));
+
+named!(blankline <()>, chain!(is_a!(" ") ~ is_a!("\r\n"), ||{}));
+
+named!(parse_header <(MessageType, Vec<(HeaderLineType, String)>)>,
+    chain!(
+        message_type: parse_header_line ~
+        header_data: parse_header_data ~
+        blankline,
+        ||{ (message_type, header_data) }
+    )
+);
