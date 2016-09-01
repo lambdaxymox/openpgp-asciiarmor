@@ -254,3 +254,5 @@ named!(parse_header <(MessageType, Vec<(HeaderLineType, String)>)>,
         ||{ (message_type, header_data) }
     )
 );
+
+named!(parse_footer <MessageType>, chain!(message_type: parse_footer_line, ||{ message_type }));
