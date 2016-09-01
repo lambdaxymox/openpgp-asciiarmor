@@ -255,4 +255,33 @@ named!(parse_header <(MessageType, Vec<(HeaderLineType, String)>)>,
     )
 );
 
+named!(pad_symbol, tag!("="));
+
 named!(parse_footer <MessageType>, chain!(message_type: parse_footer_line, ||{ message_type }));
+
+fn is_base64(ch: u8) -> bool {
+    b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/+".contains(&ch)
+}
+
+named!(parse_body_line <&[u8]>,
+    chain!(
+        line: take_while!(is_base64) ~
+        is_a!("\r\n"),
+        ||{ line }
+    )
+);
+
+named!(parse_body <(Vec<u8>)>,
+    chain!(
+        lines: many0!(parse_body_line),
+        || {
+            let mut vec: Vec<u8> = Vec::new();
+            for line in &lines {
+                let mut line_vec = line.iter().cloned().collect::<Vec<u8>>();
+                vec.append(&mut line_vec);
+            }
+
+            vec
+        }
+    )
+);
