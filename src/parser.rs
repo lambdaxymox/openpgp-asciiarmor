@@ -1,5 +1,6 @@
 use std::str;
 use std::fmt;
+use crc24;
 use nom;
 
 
@@ -164,6 +165,7 @@ named!(parse_footer_line <MessageType>,
     )
 );
 
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub enum HeaderLineType {
     Version,
     Comment,
@@ -283,5 +285,52 @@ named!(parse_body <(Vec<u8>)>,
 
             vec
         }
+    )
+);
+
+named!(parse_crc24 <crc24::Crc24>,
+    chain!(
+        pad_symbol ~
+        crc24: take!(4),
+        || {
+            crc24::crc_octets(crc24)
+        }
+
+    )
+);
+
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct ArmorMessage {
+    message_type: MessageType,
+    header_data: Vec<(HeaderLineType, String)>,
+    body: Vec<u8>,
+    crc24: crc24::Crc24
+}
+
+impl ArmorMessage {
+    fn new(message_type: MessageType,
+           header_data: Vec<(HeaderLineType, String)>,
+           body: Vec<u8>,
+           crc24: crc24::Crc24) -> ArmorMessage
+    {
+        ArmorMessage {
+            message_type: message_type,
+            header_data: header_data,
+            body: body,
+            crc24: crc24
+        }
+    }
+}
+
+named!(parse_armor <ArmorMessage>,
+    chain!(
+        header: parse_header     ~
+        message_body: parse_body ~
+        is_a!("=")               ~
+        is_a!("\r\n")            ~
+        pad_symbol               ~
+        crc24: parse_crc24       ~
+        parse_footer,
+        || { ArmorMessage::new(header.0.clone(), header.1.clone(), message_body, crc24) }
     )
 );
