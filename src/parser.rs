@@ -214,3 +214,30 @@ named!(other_header_symbol <HeaderLineType>,
         }
     )
 );
+
+named!(parse_header_line_type <HeaderLineType>,
+    alt!( version_symbol
+        | comment_symbol
+        | message_id_symbol
+        | hash_symbol
+        | charset_symbol
+        | other_header_symbol
+    )
+);
+
+named!(parse_header_line_data <String>,
+    chain!(
+        line: is_not!("\r\n") ~
+        is_a!("\r\n"),
+        || { String::from(str::from_utf8(line).unwrap()) }
+    )
+);
+
+named!(parse_header_data_line <(HeaderLineType, String)>,
+    chain!(
+        header_line_type: parse_header_line_type ~
+        colon_space_symbol ~
+        header_line_data: parse_header_line_data,
+        ||{ (header_line_type, header_line_data) }
+    )
+);
