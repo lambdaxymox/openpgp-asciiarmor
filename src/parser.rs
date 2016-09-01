@@ -163,3 +163,54 @@ named!(parse_footer_line <MessageType>,
         || { message_type }
     )
 );
+
+pub enum HeaderLineType {
+    Version,
+    Comment,
+    MessageID,
+    Hash,
+    Charset,
+    Other(String),
+}
+
+named!(version_symbol <HeaderLineType>,
+    chain!(
+        tag!("Version"), ||{ HeaderLineType::Version }
+    )
+);
+named!(colon_space_symbol, tag!(": "));
+
+named!(comment_symbol <HeaderLineType>,
+    chain!(
+        tag!("Comment"), ||{ HeaderLineType::Comment }
+    )
+);
+
+named!(message_id_symbol <HeaderLineType>,
+    chain!(
+        tag!("MessageID"), ||{ HeaderLineType::MessageID }
+    )
+);
+
+named!(hash_symbol <HeaderLineType>,
+    chain!(
+        tag!("Hash"), ||{ HeaderLineType::Hash }
+    )
+);
+
+named!(charset_symbol <HeaderLineType>,
+    chain!(
+        tag!("Charset"), ||{ HeaderLineType::Charset }
+    )
+);
+
+named!(other_header_symbol <HeaderLineType>,
+    map!(
+        take_until!(": "),
+        |tag: &[u8]| {
+            let string = String::from(str::from_utf8(tag).unwrap());
+
+            HeaderLineType::Other(string)
+        }
+    )
+);
