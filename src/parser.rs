@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use std::collections::VecDeque;
 use std::iter::Peekable;
 use lexer::Lexer;
@@ -5,8 +6,6 @@ use token::{Token, TokenType};
 use base64::Base64;
 use base64;
 use crc24;
-use std::io;
-use std::io::Write;
 use std::error;
 use std::fmt;
 
@@ -15,7 +14,7 @@ const BASE64_LINE_LENGTH: usize = 76;
 
 
 #[derive(Clone, PartialEq, Eq, Debug)]
-enum MessageType {
+pub enum MessageType {
     PGPMessage,
     PGPPublicKeyBlock,
     PGPPrivateKeyBlock,
@@ -25,7 +24,7 @@ enum MessageType {
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
-enum HeaderType {
+pub enum HeaderType {
     Version,
     Comment,
     MessageID,
@@ -57,8 +56,30 @@ struct Body {
     checksum: crc24::Crc24
 }
 
+pub struct ArmorMessage {
+    header_type: MessageType,
+    header_block: Vec<(HeaderType, String)>,
+    body: String,
+    checksum: String
+}
+
+impl ArmorMessage {
+    pub fn new(header_type: MessageType,
+           header_block: Vec<(HeaderType, String)>,
+           body: String,
+           checksum: String) -> ArmorMessage
+    {
+        ArmorMessage {
+            header_type: header_type,
+            header_block: header_block,
+            body: body,
+            checksum: checksum
+        }
+    }
+}
+
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
-enum ParseError {
+pub enum ParseError {
     CorruptHeader,
     InvalidHeaderLine,
     CorruptBody,
@@ -66,7 +87,7 @@ enum ParseError {
     ParseError,
 }
 
-type ParseResult<T> = Result<T, ParseError>;
+pub type ParseResult<T> = Result<T, ParseError>;
 
 impl ParseError {
     fn eof<T>() -> ParseResult<T> {
@@ -527,6 +548,7 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
                             let slice = token.as_str();
                             if i + slice.len() < BASE64_LINE_LENGTH {
                                 line.push_str(slice);
+                                i += 1;
                                 self.read_token();
                             } else {
                                 return self.backtrack_with_error(Err(ParseError::CorruptBody));
@@ -634,6 +656,7 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
                 Some(token) => {
                     if base64::is_base64(token.as_bytes()) && (i + token.as_bytes().len() < 4) {
                         checksum.push_str(token.as_str());
+                        i += token.as_bytes().len();
                     } else {
                         return Err(ParseError::CorruptBody)
                     }
@@ -656,6 +679,19 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
 
         self.consume();
         Ok(checksum)
+    }
+
+    pub fn parse(&mut self) -> ParseResult<ArmorMessage> {
+        let header   = try!(self.parse_header());
+        let body     = try!(self.parse_body());
+        let checksum = try!(self.parse_checksum());
+        let tail     = try!(self.parse_tail());
+
+        if header.header_type == tail {
+            Ok(ArmorMessage::new(header.header_type, header.header_block, body, checksum))
+        } else {
+            Err(ParseError::ParseError)
+        }
     }
 }
 

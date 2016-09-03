@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 // The constants CRC24_INIT and CRC24_POLY are defined in section 6.1
 // of RFC4880 along with the definition of the CRC octet validator.
 const CRC24_INIT: usize = 0xB704CE;

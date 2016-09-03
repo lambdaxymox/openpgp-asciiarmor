@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use std::iter::Iterator;
 use std::collections::VecDeque;
 use std::iter::Peekable;
