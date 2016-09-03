@@ -161,6 +161,10 @@ impl Token {
         self.text.as_str()
     }
 
+    pub fn as_bytes(&self) -> &[u8] {
+        self.text.as_bytes()
+    }
+
     fn is_pad(&self) -> bool {
         (self.token_type == TokenType::Pad) && (self.text == "=")
     }

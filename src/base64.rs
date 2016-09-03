@@ -57,6 +57,16 @@ impl Base64 {
     }
 }
 
+/// Tests whether a sequence of bytes is a base64 sequence.
+pub fn is_base64(bytes: &[u8]) -> bool {
+    for byte in bytes.iter() {
+        if (*byte as u32) != (*byte as u32) & SEXTET_MASK {
+            return false;
+        }
+    }
+    true
+}
+
 
 #[cfg(test)]
 mod tests {

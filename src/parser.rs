@@ -10,6 +10,9 @@ use std::error;
 use std::fmt;
 
 
+const BASE64_LINE_LENGTH: usize = 76;
+
+
 #[derive(Clone, PartialEq, Eq, Debug)]
 enum MessageType {
     PGPMessage,
@@ -57,6 +60,7 @@ struct Body {
 enum ParseError {
     CorruptHeader,
     InvalidHeaderLine,
+    CorruptBody,
     EndOfFile,
     ParseError,
 }
@@ -82,6 +86,7 @@ impl fmt::Display for ParseError {
         match *self {
             ParseError::CorruptHeader => write!(f, "Corrupt header"),
             ParseError::InvalidHeaderLine => write!(f, "Invalid header line."),
+            ParseError::CorruptBody => write!(f, "Corrupt Base64 data."),
             ParseError::EndOfFile => write!(f, "Reached end of armored data."),
             ParseError::ParseError => write!(f, "Parser error.")
         }
@@ -93,6 +98,7 @@ impl error::Error for ParseError {
         match *self {
             ParseError::CorruptHeader => "The header data is corrupted.",
             ParseError::InvalidHeaderLine => "A header line contains invalid data.",
+            ParseError::CorruptBody => "The Base 64 payload of the armor message was corrupted.",
             ParseError::EndOfFile => "There is no more data available.",
             ParseError::ParseError => "A general parsing error."
         }
@@ -143,6 +149,10 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
 
     fn read_token(&mut self) {
         self.offset += 1;
+    }
+
+    fn read_tokens(&mut self, amount: usize) {
+        self.offset += amount;
     }
 
     fn sync(&mut self) {
@@ -486,6 +496,120 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
         self.parse_tail_line()
     }
 
+    fn parse_body_line(&mut self) -> ParseResult<String> {
+        self.mark();
+        let mut line = String::new();
+        let mut i = 0;
+        while i < BASE64_LINE_LENGTH {
+            match self.peek_token() {
+                Some(token) => {
+                    match token.token_type() {
+                        TokenType::NewLine => {
+                            break;
+                        }
+                        TokenType::Pad => {
+                            // Parse out the padding to newline
+                            match self.parse_padding() {
+                                Ok(amount) => {
+                                    // We can consume the padding.
+                                    if i + amount < BASE64_LINE_LENGTH {
+                                        self.read_tokens(amount);
+                                        break;
+                                    } else {
+                                        return self.backtrack_with_error(Err(ParseError::CorruptBody));
+                                    }
+                                }
+                                Err(e) => return self.backtrack_with_error(Err(e))
+                            }
+                        }
+                        _ => {
+                            let slice = token.as_str();
+                            if i + slice.len() < BASE64_LINE_LENGTH {
+                                line.push_str(slice);
+                                self.read_token();
+                            } else {
+                                return self.backtrack_with_error(Err(ParseError::CorruptBody));
+                            }
+                        }
+                    }
+                }
+                None => return Err(ParseError::EndOfFile)
+            }
+        }
+        // We have hit the maximum length a line of ascii armor text can be.
+        // If the next character is not a newline character, the armor is corrupted.
+        // An base64 line of the body must be at most 76 characters, not including a newline.
+        match self.peek_token() {
+            Some(token) => {
+                match token.token_type() {
+                    TokenType::NewLine => {
+                        self.read_token();
+                    }
+                    _ => {
+                        return self.backtrack_with_error(Err(ParseError::CorruptBody));
+                    }
+                }
+            }
+            None => return Err(ParseError::EndOfFile)
+        }
+
+        self.consume();
+        Ok(line)
+    }
+
+    fn parse_padding(&mut self) -> ParseResult<usize> {
+        let mut count = 0;
+        loop {
+            match self.peek_token() {
+                Some(token) => {
+                    match token.token_type() {
+                        TokenType::Pad => {
+                            self.read_token();
+                            count += 1;
+                        }
+                        _ => break
+                    }
+                }
+                None => return Err(ParseError::EndOfFile)
+            }
+        }
+
+        Ok(count)
+    }
+
+    fn parse_body(&mut self) -> ParseResult<String> {
+        self.mark();
+        let mut string = String::new();
+        loop {
+            match self.parse_body_line() {
+                Ok(other_string) => {
+                    string.push_str(other_string.as_str());
+                    match self.peek_token() {
+                        Some(token) => {
+                            match token.token_type() {
+                                TokenType::Pad => {
+                                    // We are at the end of the base 64 data.
+                                    break;
+                                }
+                                TokenType::FiveDashes => {
+                                    // The padding line is missing.
+                                    return self.backtrack_with_error(Err(ParseError::CorruptBody));
+                                }
+                                _ => {
+                                    continue;
+                                }
+                            }
+                        }
+                        None => return Err(ParseError::EndOfFile)
+                    }
+                }
+                Err(e) => return Err(e)
+            }
+        }
+
+        self.consume();
+        Ok(string)
+    }
 }
 
 
