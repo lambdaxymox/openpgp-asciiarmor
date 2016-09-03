@@ -3,6 +3,7 @@ use std::iter::Peekable;
 use lexer::Lexer;
 use token::{Token, TokenType};
 use base64::Base64;
+use base64;
 use crc24;
 use std::io;
 use std::io::Write;
@@ -609,6 +610,52 @@ impl<S> Parser<S> where S: Iterator<Item=char> {
 
         self.consume();
         Ok(string)
+    }
+
+    fn parse_checksum(&mut self) -> ParseResult<String> {
+        self.mark();
+
+        match self.peek_token() {
+            Some(token) => {
+                match token.token_type() {
+                    TokenType::Pad => {
+                        self.read_token();
+                    }
+                    _ => return Err(ParseError::CorruptBody)
+                }
+            }
+            None => return Err(ParseError::EndOfFile)
+        }
+
+        let mut checksum = String::new();
+        let mut i = 0;
+        while i < 4 {
+            match self.peek_token() {
+                Some(token) => {
+                    if base64::is_base64(token.as_bytes()) && (i + token.as_bytes().len() < 4) {
+                        checksum.push_str(token.as_str());
+                    } else {
+                        return Err(ParseError::CorruptBody)
+                    }
+                }
+                None => return Err(ParseError::EndOfFile)
+            }
+        }
+
+        match self.peek_token() {
+            Some(token) => {
+                match token.token_type() {
+                    TokenType::NewLine => {
+                        self.read_token();
+                    }
+                    _ => return Err(ParseError::CorruptBody)
+                }
+            }
+            None => return Err(ParseError::EndOfFile)
+        }
+
+        self.consume();
+        Ok(checksum)
     }
 }
 
