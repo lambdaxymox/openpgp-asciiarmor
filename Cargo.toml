@@ -1,6 +1,6 @@
 [package]
 name = "openpgp-asciiarmor"
 version = "0.1.2"
-authors = ["Stallmanifold <stallmanifold@gmail.com>"]
+authors = ["LambdaXymox <lambda.xymox@gmail.com>"]
 
 [dependencies]
